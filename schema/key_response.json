@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KeyResponse",
+  "type": "object",
+  "required": [
+    "is_public",
+    "key"
+  ],
+  "properties": {
+    "is_public": {
+      "type": "boolean"
+    },
+    "key": {
+      "type": "string"
+    }
+  }
+}
