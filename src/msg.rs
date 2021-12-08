@@ -91,6 +91,8 @@ pub enum AsExecuteMsg<T> {
 
     /// Our custom methods:
     ///
+    SetMinimumPrice { price: Uint128 },
+
     SetPrice { media: Addr, price: Uint128 },
     AskForKey { media: Addr, key: String },
     FillKey { media: Addr, addr: Addr, key: String },
@@ -188,6 +190,7 @@ pub enum QueryMsg {
     GetKey { media: Addr, addr: Addr },
     GetBalance { addr: Addr },
     GetPrice { media: Addr },
+    GetMinimumPrice { },
     GetPublicKey { media: Addr },
 }
 

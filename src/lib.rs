@@ -26,7 +26,7 @@ pub type TokenInfoWithExtension = TokenInfo<Extension>;
 
 trait PepperMethods {
     fn purchase_price(&self) -> Uint128;
-    fn watch_price(&self, deps: &mut DepsMut, token_id: String) -> Uint128;
+    fn watch_price(&self, deps: &mut DepsMut, token_id: String, maybe_for_address: Option<Addr>) -> Uint128;
     fn nft_owner_addr(&self, deps: &mut DepsMut, token_id: String) -> Addr;
     fn nft_original_owner_addr(&self, deps: &mut DepsMut, token_id: String) -> Addr;
 
@@ -37,7 +37,7 @@ impl PepperMethods for PepperContract<'_> {
     fn purchase_price(&self) -> Uint128 {
 		return Uint128::from(1000000u128); // 1million uluna == 1 luna
     }
-    fn watch_price(&self, deps: &mut DepsMut, token_id: String) -> Uint128 {
+    fn watch_price(&self, deps: &mut DepsMut, token_id: String, maybe_for_address: Option<Addr>) -> Uint128 {
     	let token_info = self.tokens.load(deps.storage, &token_id.to_string());
 
     	if token_info.is_ok() {
@@ -45,6 +45,14 @@ impl PepperMethods for PepperContract<'_> {
 			let extension = token_info.extension.unwrap_or_default();
     		// minimum_amount = get_watch_price(&mut deps, token_info);
     		let price = extension.watch_price.unwrap();
+
+		    if let Some(for_address) = maybe_for_address {
+		    	if for_address == token_info.owner {
+		    		// if it's the nft owner purchasing the key
+		    		// it's for free
+		    		return Uint128::from(0u128);
+		    	}
+		    }
 
     		return price;
     	} else {
@@ -114,6 +122,7 @@ pub mod entry {
 	    let state = State {
 	        count: 0,
 	        count_filled: 0,
+	        minimum_watch_price: Uint128::from(0u128),
 	        owner: info.sender.clone(),
 	    };
 	    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -130,6 +139,7 @@ pub mod entry {
         msg: ExecuteMsg,
     ) -> Result<Response, ContractError> {
 	    match msg {
+	        ExecuteMsg::SetMinimumPrice { price } => try_set_minimum_price(deps, info, price),
 	        ExecuteMsg::SetPrice { media, price } => try_set_price(deps, info, media, price),
 	        ExecuteMsg::AskForKey { media, key } => try_ask_for_key(deps, info, media, key),
 	        ExecuteMsg::FillKey { media, addr, key } => try_fill_key(deps, info, media, addr, key),
@@ -231,7 +241,13 @@ pub mod entry {
 
         // let price = extension.watch_price.unwrap_or_default();
         if extension.watch_price.is_some() {
-        	extension.watch_price = Some(extension.watch_price.unwrap_or_default()); // take the price from message
+        	let state = STATE.load(deps.storage)?;
+        	let price_to_set = extension.watch_price.unwrap_or_default();
+
+		    if price_to_set < state.minimum_watch_price {
+	            return Err(ContractError::Invalid {});
+		    }
+        	extension.watch_price = Some(price_to_set); // take the price from message
         } else {
         	extension.watch_price = Some(original_contract.purchase_price()); // default one
         }
@@ -274,7 +290,33 @@ pub mod entry {
     }
 
 
+    pub fn try_set_minimum_price(deps: DepsMut, info: MessageInfo, price: Uint128) -> Result<Response, ContractError> {
+        let contract_creator = PepperContract::default().minter.load(deps.storage).ok().unwrap();
+
+        if info.sender != contract_creator {
+	        return Err(ContractError::Unauthorized {});
+        } else {
+    		if price <= Uint128::from(0u128) {
+    			// need to handle minimum price
+	            return Err(ContractError::Invalid {});
+    		}
+
+            STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
+                state.minimum_watch_price = price;
+                Ok(state)
+            })?;
+
+		    Ok(Response::new().add_attribute("method", "try_set_minimum_price"))
+        }
+    }
+
     pub fn try_set_price(deps: DepsMut, info: MessageInfo, media: Addr, price: Uint128) -> Result<Response, ContractError> {
+	    let state = STATE.load(deps.storage)?;
+
+	    if price < state.minimum_watch_price {
+            return Err(ContractError::Invalid {});
+	    }
+
     	let contract = PepperContract::default();
 
     	let token_info = contract.tokens.load(deps.storage, &media.to_string());
@@ -389,76 +431,42 @@ pub mod entry {
 	    if !has_already {
 	    	let contract = PepperContract::default();
 
-	    	let minimum_amount = contract.watch_price(&mut deps, media.to_string());
+	    	let minimum_amount = contract.watch_price(&mut deps, media.to_string(), Some(info.sender.clone()) );
 
-	    	let balance = NativeBalance(info.funds);
+	    	if !minimum_amount.is_zero() {
+		    	let balance = NativeBalance(info.funds);
 
-	        // let minimum_amount = Uint128::from(1000000u128); // 1million uluna == 1 luna
-	        let expected_coin = Coin { denom: "uluna".to_string(), amount: minimum_amount };
+		        // let minimum_amount = Uint128::from(1000000u128); // 1million uluna == 1 luna
+		        let expected_coin = Coin { denom: "uluna".to_string(), amount: minimum_amount };
 
-	        if !balance.has(&expected_coin) {
-	            return Err(ContractError::NotEnoughFunds {});
-	        }
+		        if !balance.has(&expected_coin) {
+		            return Err(ContractError::NotEnoughFunds {});
+		        }
 
-	        // Send 80% to NFT's owner:
+		        // Send 80% to NFT's owner:
 
-	        let percent = Decimal::percent(80u64);
-		    let coints_to = contract.nft_owner_addr(&mut deps, media.to_string());
-	        let amount = minimum_amount * percent;
-	        let coint_to_store = Coin { denom: "uluna".to_string(), amount: amount };
-	        store_coins(&mut deps, coints_to, coint_to_store);
+		        let percent = Decimal::percent(80u64);
+			    let coints_to = contract.nft_owner_addr(&mut deps, media.to_string());
+		        let amount = minimum_amount * percent;
+		        let coint_to_store = Coin { denom: "uluna".to_string(), amount: amount };
+		        store_coins(&mut deps, coints_to, coint_to_store);
 
-	        // Send 10% to original NFT's owner (who minted it):
+		        // Send 10% to original NFT's owner (who minted it):
 
-	        let percent = Decimal::percent(10u64);
-		    let coints_to = contract.nft_original_owner_addr(&mut deps, media.to_string());
-	        let amount = minimum_amount * percent;
-	        let coint_to_store = Coin { denom: "uluna".to_string(), amount: amount };
-	        store_coins(&mut deps, coints_to, coint_to_store);
+		        let percent = Decimal::percent(10u64);
+			    let coints_to = contract.nft_original_owner_addr(&mut deps, media.to_string());
+		        let amount = minimum_amount * percent;
+		        let coint_to_store = Coin { denom: "uluna".to_string(), amount: amount };
+		        store_coins(&mut deps, coints_to, coint_to_store);
 
+		        // Send 10% to contract creator:
 
-
-
-	        // let minter = contract.minter.load(deps.storage)?;
-
-		    // let state = STATE.load(deps.storage)?;
-
-	     //
-	     //
-	     //
-	     //
-	        // let got_coint = balance.find("uluna");
-
-	    	// let mut cw20balance = Balance::from(info.funds);
-	    	// cw20balance.normalize();
-
-	     //    let minimum_amount = Uint128::from(1000000u128); // 1million uluna == 1 luna
-	     //    let expected_coint = Coin { denom: "uluna".to_string(), amount: minimum_amount };
-	    	// // let enough = balance.has(Coin { denom: "uluna", amount: minimum_amount });
-
-	    	// let native_balance = match cw20balance {
-	     //        Balance::Native(balance) => balance,
-	     //        Balance::Cw20(_coin) => Err(ContractError::NotEnoughFunds {}),
-	     //    };
-
-	    	// if !native_balance.has(&expected_coint) {
-	     //        return Err(ContractError::NotEnoughFunds {});
-	    	// }
-
-	   //  	let native_balance = match cw20balance {
-	   //          Balance::Native(balance) => balance,
-				// _ => panic!("should not be there"),
-	   //  	};
-
-	    	// sub_saturating
-
-	        // if let Some(coins) = info.funds.first() {
-	        //     if coins.denom != "uluna" || coins.amount < Uint128::from(minimum_amount) {
-	        //         return Err(ContractError::NotEnoughFunds {});
-	        //     }
-	        // } else {
-	        //     return Err(ContractError::NotEnoughFunds {});
-	        // }
+		        let contract_creator = contract.minter.load(deps.storage).ok().unwrap();
+		        let percent = Decimal::percent(10u64);
+		        let amount = minimum_amount * percent;
+		        let coint_to_store = Coin { denom: "uluna".to_string(), amount: amount };
+		        store_coins(&mut deps, contract_creator, coint_to_store);
+	    	}
 
 	        let owner = info.sender.clone();
 	        let media_key = MediaKey {
@@ -481,7 +489,7 @@ pub mod entry {
 	}
 
 
-	pub use crate::queries::{query_count, query_key, query_balance, query_public_key};
+	pub use crate::queries::{query_count, query_key, query_balance, query_public_key, query_minimum_price};
 
 
 	pub fn query_price(deps: Deps, media: Addr) -> StdResult<PriceResponse> {
@@ -510,6 +518,7 @@ pub mod entry {
 	        QueryMsg::GetKey { media, addr } => to_binary(&query_key(deps, media, addr)?),
 	        QueryMsg::GetBalance { addr } => to_binary(&query_balance(deps, addr)?),
 	        QueryMsg::GetPrice { media } => to_binary(&query_price(deps, media)?),
+	        QueryMsg::GetMinimumPrice { } => to_binary(&query_minimum_price(deps)?),
 	        QueryMsg::GetPublicKey { media } => to_binary(&query_public_key(deps, media)?),
 	        // QueryMsg::GetKey {  } => try_ask_for_key(deps, info, media, key),
 	        _ => PepperContract::default().query(deps, env, msg.into_cw721())

@@ -6,6 +6,12 @@ pub use crate::msg::{Extension, Metadata, ExecuteMsg, MintMsg, QueryMsg, CountRe
 use crate::state::{STATE, MEDIA_KEY, BALANCE_HOLDER, MEDIA_PUBLIC_KEY};
 
 
+
+pub fn query_minimum_price(deps: Deps) -> StdResult<PriceResponse> {
+    let state = STATE.load(deps.storage)?;
+    Ok(PriceResponse { uluna: state.minimum_watch_price.to_string() })
+}
+
 pub fn query_balance(deps: Deps, addr: Addr) -> StdResult<BalanceResponse> {
     let has_already = BALANCE_HOLDER
         .has(deps.storage, &addr);

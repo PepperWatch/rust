@@ -154,22 +154,22 @@ fn extended_functions() {
 
 
     // minter balance should be increased
-    let info = mock_info("merlin", &coins(2, "token"));
+    let info = mock_info(&MINTER.to_string(), &coins(2, "token"));
     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetBalance { addr: info.sender.clone() }).unwrap();
     let value: BalanceResponse = from_binary(&res).unwrap();
-    assert_eq!("900000", value.uluna); // 80% of the price as owner. 10% of the price as creator
+    assert_eq!("1000000", value.uluna); // 80% of the price as owner. 10% of the price as creator
 
 
 
     // minter can withdraw uluna
     let msg = ExecuteMsg::Withdraw {  };
-    let info = mock_info("merlin", &[]);
+    let info = mock_info(&MINTER.to_string(), &[]);
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 
 
     // minter balance should be 0 now
-    let info = mock_info("merlin",  &[]);
+    let info = mock_info(&MINTER.to_string(),  &[]);
     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetBalance { addr: info.sender.clone() }).unwrap();
     let value: BalanceResponse = from_binary(&res).unwrap();
     assert_eq!("0", value.uluna); // 80% of the price as owner. 10% of the price as creator
@@ -373,6 +373,7 @@ fn mint_and_buy() {
     // let watcher = info.sender.clone();
     let msg = ExecuteMsg::AskForKey { media: token_addr.clone(), key: "key".to_string() };
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
 }
 
 
@@ -399,6 +400,7 @@ fn set_the_price_with_mint() {
         token_key_version: None,
     });
 
+    // whoever can mint
     let allowed = mock_info("whoever", &[]);
     let _ = execute(deps.as_mut(), mock_env(), allowed, mint_msg).unwrap();
 
@@ -425,6 +427,19 @@ fn set_the_price_with_mint() {
     let msg = ExecuteMsg::AskForKey { media: token_addr.clone(), key: "key".to_string() };
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
+
+    // minter balance should be increased
+    let info = mock_info("whoever", &coins(2, "token"));
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetBalance { addr: info.sender.clone() }).unwrap();
+    let value: BalanceResponse = from_binary(&res).unwrap();
+    assert_eq!("90000", value.uluna); // 80% of the price as owner. 10% of the price as creator
+
+
+    // contact creator balance should be increased
+    let info = mock_info(MINTER, &coins(2, "token"));
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetBalance { addr: info.sender.clone() }).unwrap();
+    let value: BalanceResponse = from_binary(&res).unwrap();
+    assert_eq!("10000", value.uluna); // 80% of the price as owner. 10% of the price as creator
 
 
     // others can't change the price
@@ -464,7 +479,128 @@ fn set_the_price_with_mint() {
     let msg = ExecuteMsg::AskForKey { media: token_addr.clone(), key: "key".to_string() };
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
+    // minter balance should be increased
+    let info = mock_info("whoever", &coins(2, "token"));
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetBalance { addr: info.sender.clone() }).unwrap();
+    let value: BalanceResponse = from_binary(&res).unwrap();
+    assert_eq!("270000", value.uluna); // 0.09+0.18
+
+
+    // contact creator balance should be increased
+    let info = mock_info(MINTER, &coins(2, "token"));
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetBalance { addr: info.sender.clone() }).unwrap();
+    let value: BalanceResponse = from_binary(&res).unwrap();
+    assert_eq!("30000", value.uluna); // 0.01 + 0.02
+
 }
+
+
+
+#[test]
+fn minimum_price_handling() {
+    let mut deps = mock_dependencies(&[]);
+    setup_contract(deps.as_mut());
+
+    // somebody can't set the minimum watch price on a contract
+    let allowed = mock_info("somebodyotherthanowner", &[]);
+    let msg = ExecuteMsg::SetMinimumPrice { price: Uint128::from(50000u128) };
+    let res = execute(deps.as_mut(), mock_env(), allowed, msg);
+    match res {
+        Err(ContractError::Unauthorized {}) => {}
+        _ => panic!("Must return Unauthorized error"),
+    };
+
+    // contract owner can set the minimum price
+    let allowed = mock_info(MINTER, &[]);
+    let msg = ExecuteMsg::SetMinimumPrice { price: Uint128::from(50000u128) };
+    let _res = execute(deps.as_mut(), mock_env(), allowed, msg).unwrap();
+
+
+    let token_id = "token_id".to_string();
+    let token_uri = "https://www.merriam-webster.com/dictionary/petrify".to_string();
+
+    let nft_minter = "whoever";
+
+    let mint_msg = ExecuteMsg::Mint(MintMsg {
+        token_id: token_id.clone(),
+        owner: String::from(nft_minter),
+        token_uri: Some(token_uri.clone()),
+        extension: Some(Metadata {
+            watch_price: Some(Uint128::from(1u128)), // 0.1 Luna
+            description: Some("Spaceship with Warp Drive".into()),
+            name: Some("Starship USS Enterprise".to_string()),
+            ..Metadata::default()
+        }),
+        token_key: None,
+        token_key_version: None,
+    });
+
+    // can't mint setting watch price to lower then default minimum
+    let allowed = mock_info(nft_minter, &[]);
+    let res = execute(deps.as_mut(), mock_env(), allowed, mint_msg);
+    match res {
+        Err(ContractError::Invalid {}) => {}
+        _ => panic!("Must return Invalid error"),
+    };
+
+    let mint_msg = ExecuteMsg::Mint(MintMsg {
+        token_id: token_id.clone(),
+        owner: String::from(nft_minter),
+        token_uri: Some(token_uri.clone()),
+        extension: Some(Metadata {
+            watch_price: Some(Uint128::from(49999u128)), // 0.1 Luna
+            description: Some("Spaceship with Warp Drive".into()),
+            name: Some("Starship USS Enterprise".to_string()),
+            ..Metadata::default()
+        }),
+        token_key: None,
+        token_key_version: None,
+    });
+
+    // can't mint setting watch price to lower then default minimum
+    let allowed = mock_info(nft_minter, &[]);
+    let res = execute(deps.as_mut(), mock_env(), allowed, mint_msg);
+    match res {
+        Err(ContractError::Invalid {}) => {}
+        _ => panic!("Must return Invalid error"),
+    };
+
+    // can mint setting the price to minimum
+    let mint_msg = ExecuteMsg::Mint(MintMsg {
+        token_id: token_id.clone(),
+        owner: String::from(nft_minter),
+        token_uri: Some(token_uri.clone()),
+        extension: Some(Metadata {
+            watch_price: Some(Uint128::from(50000u128)), // 0.1 Luna
+            description: Some("Spaceship with Warp Drive".into()),
+            name: Some("Starship USS Enterprise".to_string()),
+            ..Metadata::default()
+        }),
+        token_key: None,
+        token_key_version: None,
+    });
+    let allowed = mock_info(nft_minter, &[]);
+    let _ = execute(deps.as_mut(), mock_env(), allowed, mint_msg).unwrap();
+
+
+    // can't update watch price to lower than minimum
+    let allowed = mock_info(nft_minter, &[]);
+    let msg = ExecuteMsg::SetPrice { media: Addr::unchecked(token_id.clone()), price: Uint128::from(49000u128) };
+    let res = execute(deps.as_mut(), mock_env(), allowed, msg);
+    match res {
+        Err(ContractError::Invalid {}) => {}
+        _ => panic!("Must return Invalid error"),
+    };
+
+    // can  update watch price above than minimum
+    let allowed = mock_info(nft_minter, &[]);
+    let msg = ExecuteMsg::SetPrice { media: Addr::unchecked(token_id.clone()), price: Uint128::from(159000u128) };
+    let _res = execute(deps.as_mut(), mock_env(), allowed, msg).unwrap();
+
+
+}
+
+
 
 
 
@@ -577,7 +713,7 @@ fn transferring_nft() {
         token_key_version: None,
     });
 
-    let minter = mock_info(MINTER, &[]);
+    let minter = mock_info(&String::from("venus"), &[]);
     execute(deps.as_mut(), mock_env(), minter, mint_msg)
         .unwrap();
 
@@ -608,8 +744,26 @@ fn transferring_nft() {
             .add_attribute("action", "transfer_nft")
             .add_attribute("sender", "venus")
             .add_attribute("recipient", "random")
-            .add_attribute("token_id", token_id)
+            .add_attribute("token_id", token_id.clone())
     );
+
+
+    // anyone can ask for the key with enough luna
+    let info = mock_info("anyonenew", &coins(1000000u128, "uluna"));
+    // let watcher = info.sender.clone();
+    let msg = ExecuteMsg::AskForKey { media: Addr::unchecked(token_id.clone()), key: "key".to_string() };
+    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+
+    let info = mock_info(&String::from("random"), &coins(2, "token"));
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetBalance { addr: info.sender.clone() }).unwrap();
+    let value: BalanceResponse = from_binary(&res).unwrap();
+    assert_eq!("800000", value.uluna); // 80% as for nft owner
+
+    let info = mock_info(&String::from("venus"), &coins(2, "token"));
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetBalance { addr: info.sender.clone() }).unwrap();
+    let value: BalanceResponse = from_binary(&res).unwrap();
+    assert_eq!("100000", value.uluna); // Only 10%, as for original nft minter
 }
 
 #[test]

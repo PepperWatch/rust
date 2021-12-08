@@ -72,6 +72,9 @@ pub enum QueryMsg {
     // Get earnings balance for specific wallet
     GetBalance { addr: Addr },
 
+    // Get minimum price to be set for per-view purchase. Default is 0 (no minimum)
+    GetMinimumPrice { },
+
     // Get price to watch NFT with if of `media`
     GetPrice { media: Addr },
 
@@ -119,6 +122,10 @@ pub enum AsExecuteMsg<T> {
 
     /// Our custom methods:
     ///
+    /// Specify minimum per view price in uluna
+    /// SetMinimumPrice - may be called by contract owner only. Price is in uluna (1/1000000) of Luna
+    SetMinimumPrice { price: Uint128 },
+    /// Per view price for specific nft:
     /// SetPrice - may be called by user minted specific NFT only. Price is in uluna (1/1000000) of Luna
     SetPrice { media: Addr, price: Uint128 },
     /// Purchase the key

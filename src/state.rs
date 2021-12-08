@@ -26,6 +26,7 @@ pub struct State {
     pub count: i32,
     pub count_filled: i32,
     pub owner: Addr,
+    pub minimum_watch_price: Uint128,
 }
 
 pub const STATE: Item<State> = Item::new("state");
