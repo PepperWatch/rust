@@ -173,6 +173,21 @@ cargo run-script optimize
 cargo schema
 ```
 
+#### Gas Estimation Script
+
+Run (LocalTerra)[https://github.com/terra-money/LocalTerra], be sure you have test1 key set for `terrad`.
+
+And run from this directory:
+```sh
+    node testfees.js
+
+```
+
+It will deploy currently compiled contract to localterra and execute common commands over it (mint, ask for key, fill the key) and display some gas info.
+
+Working to optimize rust code based on this.
+
+
 #### Deploying to blockchain
 
 Actually, it's easier to do this from Terra Station's (contracts page)[https://station.terra.money/contracts]. Be sure you are connected to testnet or localterra.
