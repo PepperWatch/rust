@@ -12,7 +12,7 @@ use cw721::{
 };
 
 use crate::{
-    ContractError, PepperContract, ExecuteMsg, InstantiateMsg, MintMsg, QueryMsg, Metadata, CountResponse, KeyResponse, BalanceResponse, PriceResponse, PublicKeyResponse,
+    ContractError, PepperContract, ExecuteMsg, InstantiateMsg, MintMsg, QueryMsg, Metadata, CountResponse, BalanceResponse, PriceResponse, PublicKeyResponse,
 };
 
 use crate::entry::{execute,query,instantiate};
@@ -85,96 +85,94 @@ fn proper_extended_initialization() {
     assert_eq!(0, value.count);
 }
 
-#[test]
-fn extended_functions() {
-    let mut deps = mock_dependencies(&[]);
+// #[test]
+// fn extended_functions() {
+//     let mut deps = mock_dependencies(&[]);
 
-    setup_contract(deps.as_mut());
+//     setup_contract(deps.as_mut());
 
-    // count is 0
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-    let value: CountResponse = from_binary(&res).unwrap();
-    assert_eq!(0, value.count);
+//     // count is 0
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
+//     let value: CountResponse = from_binary(&res).unwrap();
+//     assert_eq!(0, value.count);
 
-    let media_addr = Addr::unchecked("terra1333veey879eeqcff8j3gfcgwt8cfrg9mq20v6f");
-
-
-    // can't ask for the key for free
-    let unauth_info = mock_info("anyone", &coins(1u128, "uluna"));
-    let msg = ExecuteMsg::AskForKey { media: media_addr.clone(), key: "key".to_string() };
-    let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
-    match res {
-        Err(ContractError::NotEnoughFunds {}) => {}
-        _ => panic!("Must return NotEnoughFunds error"),
-    }
-
-    // can't ask for the key for free (no coins at all)
-    let unauth_info = mock_info("anyone", &[]);
-    let msg = ExecuteMsg::AskForKey { media: media_addr.clone(), key: "key".to_string() };
-    let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
-    match res {
-        Err(ContractError::NotEnoughFunds {}) => {}
-        _ => panic!("Must return NotEnoughFunds error"),
-    }
-
-    // anyone can ask for the key
-    let info = mock_info("anyone", &coins(1000000u128, "uluna"));
-    let watcher = info.sender.clone();
-
-    let msg = ExecuteMsg::AskForKey { media: media_addr.clone(), key: "key".to_string() };
-    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-    // server can query the key
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetKey { media: media_addr.clone(), addr: watcher.clone() }).unwrap();
-    let value: KeyResponse = from_binary(&res).unwrap();
-    assert_eq!("key", value.key);
-    assert_eq!(true, value.is_public);
-
-    // other users can't upload encoded key
-    let unauth_info = mock_info("anyone", &coins(2, "luna"));
-    let msg = ExecuteMsg::FillKey { media: media_addr.clone(), addr: watcher.clone(), key: "filledkey".to_string() };
-    let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
-    match res {
-        Err(ContractError::Unauthorized {}) => {}
-        _ => panic!("Must return unauthorized error"),
-    }
-
-    // server can upload encoded key
-    let msg = ExecuteMsg::FillKey { media: media_addr.clone(), addr: watcher.clone(), key: "filledkey".to_string() };
-    let info = mock_info("creator", &coins(2, "luna"));
-    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-    // anyone can query the key
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetKey { media: media_addr.clone(), addr: watcher.clone() }).unwrap();
-    let value: KeyResponse = from_binary(&res).unwrap();
-    assert_eq!("filledkey", value.key);
-    assert_eq!(false, value.is_public);
+//     let media_addr = Addr::unchecked("terra1333veey879eeqcff8j3gfcgwt8cfrg9mq20v6f");
 
 
+//     // can't ask for the key for free
+//     let unauth_info = mock_info("anyone", &coins(1u128, "uluna"));
+//     let msg = ExecuteMsg::AskForKey { media: media_addr.clone(), key: "key".to_string() };
+//     let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
+//     match res {
+//         Err(ContractError::NotEnoughFunds {}) => {}
+//         _ => panic!("Must return NotEnoughFunds error"),
+//     }
 
+//     // can't ask for the key for free (no coins at all)
+//     let unauth_info = mock_info("anyone", &[]);
+//     let msg = ExecuteMsg::AskForKey { media: media_addr.clone(), key: "key".to_string() };
+//     let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
+//     match res {
+//         Err(ContractError::NotEnoughFunds {}) => {}
+//         _ => panic!("Must return NotEnoughFunds error"),
+//     }
 
-    // minter balance should be increased
-    let info = mock_info(&MINTER.to_string(), &coins(2, "token"));
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetBalance { addr: info.sender.clone() }).unwrap();
-    let value: BalanceResponse = from_binary(&res).unwrap();
-    assert_eq!("1000000", value.uluna); // 80% of the price as owner. 10% of the price as creator
+//     // anyone can ask for the key
+//     let info = mock_info("anyone", &coins(1000000u128, "uluna"));
+//     let watcher = info.sender.clone();
+
+//     let msg = ExecuteMsg::AskForKey { media: media_addr.clone(), key: "key".to_string() };
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+//     // server can query the key
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetKey { media: media_addr.clone(), addr: watcher.clone() }).unwrap();
+//     let value: KeyResponse = from_binary(&res).unwrap();
+//     assert_eq!("key", value.key);
+//     assert_eq!(true, value.is_public);
+
+//     // other users can't upload encoded key
+//     let unauth_info = mock_info("anyone", &coins(2, "luna"));
+//     let msg = ExecuteMsg::FillKey { media: media_addr.clone(), addr: watcher.clone(), key: "filledkey".to_string() };
+//     let res = execute(deps.as_mut(), mock_env(), unauth_info, msg);
+//     match res {
+//         Err(ContractError::Unauthorized {}) => {}
+//         _ => panic!("Must return unauthorized error"),
+//     }
+
+//     // server can upload encoded key
+//     let msg = ExecuteMsg::FillKey { media: media_addr.clone(), addr: watcher.clone(), key: "filledkey".to_string() };
+//     let info = mock_info("creator", &coins(2, "luna"));
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+//     // anyone can query the key
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetKey { media: media_addr.clone(), addr: watcher.clone() }).unwrap();
+//     let value: KeyResponse = from_binary(&res).unwrap();
+//     assert_eq!("filledkey", value.key);
+//     assert_eq!(false, value.is_public);
 
 
 
-    // minter can withdraw uluna
-    let msg = ExecuteMsg::Withdraw {  };
-    let info = mock_info(&MINTER.to_string(), &[]);
-    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+//     // minter balance should be increased
+//     let info = mock_info(&MINTER.to_string(), &coins(2, "token"));
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetBalance { addr: info.sender.clone() }).unwrap();
+//     let value: BalanceResponse = from_binary(&res).unwrap();
+//     assert_eq!("1000000", value.uluna); // 80% of the price as owner. 10% of the price as creator
 
 
 
-    // minter balance should be 0 now
-    let info = mock_info(&MINTER.to_string(),  &[]);
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetBalance { addr: info.sender.clone() }).unwrap();
-    let value: BalanceResponse = from_binary(&res).unwrap();
-    assert_eq!("0", value.uluna); // 80% of the price as owner. 10% of the price as creator
+//     // minter can withdraw uluna
+//     let msg = ExecuteMsg::Withdraw {  };
+//     let info = mock_info(&MINTER.to_string(), &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 
+
+//     // minter balance should be 0 now
+//     let info = mock_info(&MINTER.to_string(),  &[]);
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetBalance { addr: info.sender.clone() }).unwrap();
+//     let value: BalanceResponse = from_binary(&res).unwrap();
+//     assert_eq!("0", value.uluna); // 80% of the price as owner. 10% of the price as creator
 
 
 
@@ -190,58 +188,39 @@ fn extended_functions() {
 
 
 
-    // count is 1 now
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-    let value: CountResponse = from_binary(&res).unwrap();
-    assert_eq!(1, value.count);
-    assert_eq!(1, value.count_filled);
 
-    // asking the same code again should change nothing
-    let info = mock_info("anyone", &coins(2, "uluna"));
-    let msg = ExecuteMsg::AskForKey { media: media_addr.clone(), key: "key".to_string() };
-    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    // key is still set to encoded
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetKey { media: media_addr.clone(), addr: watcher.clone() }).unwrap();
-    let value: KeyResponse = from_binary(&res).unwrap();
-    assert_eq!("filledkey", value.key);
-    assert_eq!(false, value.is_public);
+//     // asking the same code again should change nothing
+//     let info = mock_info("anyone", &coins(2, "uluna"));
+//     let msg = ExecuteMsg::AskForKey { media: media_addr.clone(), key: "key".to_string() };
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    // count is still 1
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-    let value: CountResponse = from_binary(&res).unwrap();
-    assert_eq!(1, value.count);
-    assert_eq!(1, value.count_filled);
+//     // key is still set to encoded
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetKey { media: media_addr.clone(), addr: watcher.clone() }).unwrap();
+//     let value: KeyResponse = from_binary(&res).unwrap();
+//     assert_eq!("filledkey", value.key);
+//     assert_eq!(false, value.is_public);
 
-    // uploading another code changes nothing
-    let msg = ExecuteMsg::FillKey { media: media_addr.clone(), addr: watcher.clone(), key: "fille3333dkey".to_string() };
-    let info = mock_info("creator", &coins(2, "luna"));
-    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    // count is still 1
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-    let value: CountResponse = from_binary(&res).unwrap();
-    assert_eq!(1, value.count);
-    assert_eq!(1, value.count_filled);
+//     // uploading another code changes nothing
+//     let msg = ExecuteMsg::FillKey { media: media_addr.clone(), addr: watcher.clone(), key: "fille3333dkey".to_string() };
+//     let info = mock_info("creator", &coins(2, "luna"));
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    // key is still set to encoded
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetKey { media: media_addr.clone(), addr: watcher.clone() }).unwrap();
-    let value: KeyResponse = from_binary(&res).unwrap();
-    assert_eq!("filledkey", value.key);
-    assert_eq!(false, value.is_public);
 
-    // asking the code by another user
-    let info = mock_info("somebody", &coins(1000000u128, "uluna"));
-    let msg = ExecuteMsg::AskForKey { media: media_addr.clone(), key: "key".to_string() };
-    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+//     // key is still set to encoded
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetKey { media: media_addr.clone(), addr: watcher.clone() }).unwrap();
+//     let value: KeyResponse = from_binary(&res).unwrap();
+//     assert_eq!("filledkey", value.key);
+//     assert_eq!(false, value.is_public);
 
-    // count is 2 now
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-    let value: CountResponse = from_binary(&res).unwrap();
-    assert_eq!(2, value.count);
-    assert_eq!(1, value.count_filled); // not yet filled
+//     // asking the code by another user
+//     let info = mock_info("somebody", &coins(1000000u128, "uluna"));
+//     let msg = ExecuteMsg::AskForKey { media: media_addr.clone(), key: "key".to_string() };
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-}
+
+// }
 
 #[test]
 fn minting() {

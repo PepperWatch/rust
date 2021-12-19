@@ -356,10 +356,10 @@ pub mod entry {
 	        return Err(ContractError::Unauthorized {});
 	    }
 
-	    let has_already = MEDIA_KEY
-	        .has(deps.storage, (&addr, &media));
+	    // let has_already = MEDIA_KEY
+	    //     .has(deps.storage, (&addr, &media));
 
-	    if has_already {
+	    // if has_already {
 	        let mut updated = false;
 
 	        MEDIA_KEY.update(deps.storage, (&addr, &media), |old| -> StdResult<_> {
@@ -375,14 +375,14 @@ pub mod entry {
 	            Ok(m_key)
 	        })?;
 
-	        if updated {
-	            STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
-	                state.count_filled += 1;
-	                Ok(state)
-	            })?;
-	        }
+	        // if updated {
+	        //     STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
+	        //         state.count_filled += 1;
+	        //         Ok(state)
+	        //     })?;
+	        // }
 
-	    }
+	    // }
 
 	    Ok(Response::new().add_attribute("method", "try_fill_key"))
 	}
@@ -463,7 +463,7 @@ pub mod entry {
 
 		        let contract_creator = contract.minter.load(deps.storage).ok().unwrap();
 		        let percent = Decimal::percent(10u64);
-		        let amount = minimum_amount * percent;
+		        let amount = minimum_amount * percent; // amount is same 10%, but it's optimized, no extra gas, so lets keep it for reading
 		        let coint_to_store = Coin { denom: "uluna".to_string(), amount: amount };
 		        store_coins(&mut deps, contract_creator, coint_to_store);
 	    	}
@@ -479,10 +479,10 @@ pub mod entry {
 	        MEDIA_KEY.save(deps.storage, (&info.sender, &media), &media_key)?;
 
 	        // Increment count in state
-	        STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
-	            state.count += 1;
-	            Ok(state)
-	        })?;
+	        // STATE.update(deps.storage, |mut state| -> Result<_, ContractError> {
+	        //     state.count += 1;
+	        //     Ok(state)
+	        // })?;
 	    }
 
 	    Ok(Response::new().add_attribute("method", "try_ask_for_key"))

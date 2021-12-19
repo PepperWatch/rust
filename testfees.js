@@ -36,6 +36,8 @@ const execute = async (command)=>{
 	let gasEstimate = null;
 
 	try {
+		console.log('Executing '+(command.substr(0,35))+'...');
+
 		const { stdout, stderr } = await exec(command);
 
 		// console.log(stdout);
@@ -57,7 +59,7 @@ const execute = async (command)=>{
 
 		return resp;
 	} catch(e) {
-		console.error(e);
+		// console.error(e);
 
 		return {gasEstimate: gasEstimate};
 	}
@@ -79,6 +81,11 @@ const searchAttr = (resp, eventType, attrKey) => {
 }
 
 const run = async ()=>{
+	console.log('LocalTerra is running...');
+
+	await execute(`cargo wasm`);
+	await execute(`cargo run-script optimize`);
+
 	let resp = null;
 	let totalGas = 0;
 
@@ -102,7 +109,7 @@ const run = async ()=>{
 
 	console.log('contractAddress', contractAddress);
 
-	cmd = `terrad tx wasm execute ${contractAddress} '${JSON.stringify(mintMSG)}' 1000000uluna --from ${instantiateFromAccount} -y --output json --chain-id=${chainId} --fees=1000000uluna --gas=auto --broadcast-mode=block`;
+	cmd = `terrad tx wasm execute ${contractAddress} '${JSON.stringify(mintMSG)}' --from ${instantiateFromAccount} -y --output json --chain-id=${chainId} --fees=1000000uluna --gas=auto --broadcast-mode=block`;
 	resp = await execute(cmd);
 	const mintGas = resp.gasEstimate;
 
