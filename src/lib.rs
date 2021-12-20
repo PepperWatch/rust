@@ -145,6 +145,7 @@ pub mod entry {
 	        ExecuteMsg::FillKey { media, addr, key } => try_fill_key(deps, info, media, addr, key),
 	        ExecuteMsg::Withdraw {  } => try_withdraw(deps, env, info),
 	        ExecuteMsg::Mint(msg) => try_mint(deps, info, msg),
+	        ExecuteMsg::Burn { token_id } => try_burn(deps, env, info, token_id),
 	        _ => default_execute_to_extended(deps, env, info, msg)
 	    }
     }
@@ -164,6 +165,31 @@ pub mod entry {
 			Ok(val) => Ok(val),
 	        Err(_err) => Err(ContractError::Unhandled {}),
 	    }
+    }
+
+    pub fn try_burn(
+        deps: DepsMut,
+        _env: Env,
+        info: MessageInfo,
+        token_id: String,
+    ) -> Result<Response, ContractError> {
+    	let original_contract = PepperContract::default();
+    	let token_info = original_contract.tokens.load(deps.storage, &token_id)?;
+
+		if token_info.owner != info.sender {
+            return Err(ContractError::Unauthorized {});
+		}
+
+        original_contract.tokens.remove(deps.storage, &token_id)?;
+
+        // decrement tokens original_contract.decrement_tokens(deps.storage)?;
+        let val = original_contract.token_count(deps.storage)? - 1;
+        original_contract.token_count.save(deps.storage, &val)?;
+
+        Ok(Response::new()
+            .add_attribute("action", "burn")
+            .add_attribute("sender", info.sender)
+            .add_attribute("token_id", token_id))
     }
 
     pub fn try_withdraw(
