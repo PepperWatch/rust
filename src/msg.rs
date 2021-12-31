@@ -4,6 +4,10 @@ use serde::{Deserialize, Serialize};
 use cosmwasm_std::{Addr, Binary, Uint128};
 use cw721::{Expiration};
 
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct TagsResponse {
+    pub tags: Vec<Addr>,
+}
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug, Default)]
 pub struct Trait {
@@ -27,6 +31,8 @@ pub struct Metadata {
 
     pub original_owner: Option<Addr>,
     pub watch_price: Option<Uint128>,
+
+    pub tag_id: Option<Addr>,
 }
 
 pub type Extension = Option<Metadata>;
@@ -45,9 +51,20 @@ pub struct AsMintMsg<T> {
     pub token_key_version: Option<u32>,
     /// Any custom extension used by this contract
     pub extension: T,
+
+    pub is_tag: Option<bool>,
+    pub parent_tag_id: Option<String>,
 }
 
 pub type MintMsg = AsMintMsg<Extension>;
+
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct MintTagMsg {
+    pub tag_id: Addr,
+    pub is_private: bool,
+}
+
 
 /// This is like Cw721ExecuteMsg but we add a Mint command for an owner
 /// to make this stand-alone. You will likely want to remove mint and
@@ -84,6 +101,9 @@ pub enum AsExecuteMsg<T> {
 
     /// Mint a new NFT, can only be called by the contract minter
     Mint(AsMintMsg<T>),
+
+    /// Mint a new NFT, can only be called by the contract minter
+    MintTag(MintTagMsg),
 
     /// Burn an NFT the sender has access to
     Burn { token_id: String },
@@ -184,6 +204,12 @@ pub enum QueryMsg {
 
     // Return the minter
     Minter {},
+
+    //
+    Tags {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
 
     // GetCount returns the current count as a json-encoded number
     GetCount {},

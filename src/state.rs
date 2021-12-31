@@ -33,6 +33,16 @@ pub const STATE: Item<State> = Item::new("state");
 pub const MEDIA_PUBLIC_KEY: Map<&Addr, MediaPublicKey> = Map::new("media_public_key");
 pub const MEDIA_KEY: Map<(&Addr, &Addr), MediaKey> = Map::new("media_key");
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct Tag {
+    pub count: i32,
+    pub owner: Addr,
+    pub main_token_id: Option<String>,
+    pub tag_id: Addr,
+    pub is_private: bool,
+}
+
+pub const TAG: Map<&Addr, Tag> = Map::new("tag");
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug, Default)]
 pub struct GenericBalance {

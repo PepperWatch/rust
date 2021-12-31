@@ -12,7 +12,7 @@ use cw721::{
 };
 
 use crate::{
-    ContractError, PepperContract, ExecuteMsg, InstantiateMsg, MintMsg, QueryMsg, Metadata, CountResponse, BalanceResponse, PriceResponse, PublicKeyResponse,
+    ContractError, PepperContract, ExecuteMsg, InstantiateMsg, MintMsg, MintTagMsg, QueryMsg, Metadata, CountResponse, BalanceResponse, PriceResponse, PublicKeyResponse, TagsResponse,
 };
 
 use crate::entry::{execute,query,instantiate};
@@ -237,6 +237,8 @@ fn minting() {
         extension: None,
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     // Can!
@@ -290,6 +292,8 @@ fn minting() {
         extension: None,
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     let allowed = mock_info(MINTER, &[]);
@@ -324,6 +328,8 @@ fn mint_and_buy() {
         extension: None,
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     // minter can mint
@@ -377,6 +383,8 @@ fn set_the_price_with_mint() {
         }),
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     // whoever can mint
@@ -512,6 +520,8 @@ fn minimum_price_handling() {
         }),
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     // can't mint setting watch price to lower then default minimum
@@ -534,6 +544,8 @@ fn minimum_price_handling() {
         }),
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     // can't mint setting watch price to lower then default minimum
@@ -557,6 +569,8 @@ fn minimum_price_handling() {
         }),
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
     let allowed = mock_info(nft_minter, &[]);
     let _ = execute(deps.as_mut(), mock_env(), allowed, mint_msg).unwrap();
@@ -611,6 +625,8 @@ fn use_metadata_extension() {
         }),
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     };
     let exec_msg = ExecuteMsg::Mint(mint_msg.clone());
 
@@ -643,6 +659,8 @@ fn burning() {
         extension: None,
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     let burn_msg = ExecuteMsg::Burn { token_id };
@@ -692,6 +710,8 @@ fn transferring_nft() {
         extension: None,
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     let minter = mock_info(&String::from("venus"), &[]);
@@ -763,6 +783,8 @@ fn sending_nft() {
         extension: None,
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     let minter = mock_info(MINTER, &[]);
@@ -828,6 +850,8 @@ fn approving_revoking() {
         extension: None,
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     let minter = mock_info(MINTER, &[]);
@@ -930,6 +954,8 @@ fn approving_all_revoking_all() {
         extension: None,
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     let minter = mock_info(MINTER, &[]);
@@ -943,6 +969,8 @@ fn approving_all_revoking_all() {
         extension: None,
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     execute(deps.as_mut(), mock_env(), minter, mint_msg2)
@@ -1142,6 +1170,8 @@ fn query_tokens_by_owner() {
         extension: None,
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     execute(deps.as_mut(), mock_env(), minter.clone(), mint_msg)
@@ -1154,6 +1184,8 @@ fn query_tokens_by_owner() {
         extension: None,
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     execute(deps.as_mut(), mock_env(), minter.clone(), mint_msg)
@@ -1166,6 +1198,8 @@ fn query_tokens_by_owner() {
         extension: None,
         token_key: None,
         token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     execute(deps.as_mut(), mock_env(), minter, mint_msg)
@@ -1233,6 +1267,8 @@ fn storing_the_public_key_with_mint() {
         }),
         token_key: Some(test_public_token_key.clone()),
         token_key_version: Some(test_public_token_key_version),
+        is_tag: None,
+        parent_tag_id: None,
     });
 
     let allowed = mock_info("whoever", &[]);
@@ -1245,6 +1281,137 @@ fn storing_the_public_key_with_mint() {
 
     assert_eq!(test_public_token_key, value.token_key);
     assert_eq!(test_public_token_key_version, value.token_key_version);
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+#[test]
+fn minting_the_private_tag() {
+    let mut deps = mock_dependencies(&[]);
+    setup_contract(deps.as_mut());
+
+
+    // no tags at all for now
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Tags { start_after: None, limit: None}).unwrap();
+    let value: TagsResponse = from_binary(&res).unwrap();
+    assert_eq!(0, value.tags.len());
+
+    let tag_id = "testtagid";
+
+    let mint_tag_msg = ExecuteMsg::MintTag(MintTagMsg {
+        tag_id: Addr::unchecked(tag_id),
+        is_private: true,
+    });
+
+    let allowed = mock_info("whoever", &[]);
+    let _ = execute(deps.as_mut(), mock_env(), allowed.clone(), mint_tag_msg).unwrap();
+
+    // there is 1 tag now
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Tags { start_after: None, limit: None}).unwrap();
+    let value: TagsResponse = from_binary(&res).unwrap();
+    assert_eq!(1, value.tags.len());
+
+    // quick check that as tag is private, other users can not mint the token into it
+
+    let token_id = "someidwithpublickey".to_string();
+    let token_uri = "https://www.merriam-webster.com/dictionary/someidwithpublickey".to_string();
+
+
+    let disallowed = mock_info("somebody", &[]);
+
+    let mint_msg = ExecuteMsg::Mint(MintMsg {
+        token_id: token_id.clone(),
+        owner: String::from("somebody"),
+        token_uri: Some(token_uri.clone()),
+        extension: Some(Metadata {
+            watch_price: Some(Uint128::from(100000u128)), // 0.1 Luna
+            description: Some("Spaceship with Warp Drive".into()),
+            name: Some("Starship USS Enterprise".to_string()),
+            tag_id: Some(Addr::unchecked(tag_id)),
+            ..Metadata::default()
+        }),
+        token_key: None,
+        token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
+    });
+
+    let res = execute(deps.as_mut(), mock_env(), disallowed, mint_msg.clone());
+    match res {
+        Err(ContractError::Unauthorized {}) => {}
+        _ => panic!("Must return unauthorized error"),
+    }
+
+    let mint_ok_msg = ExecuteMsg::Mint(MintMsg {
+        token_id: token_id.clone(),
+        owner: String::from("whoever"),
+        token_uri: Some(token_uri.clone()),
+        extension: Some(Metadata {
+            watch_price: Some(Uint128::from(100000u128)), // 0.1 Luna
+            description: Some("Spaceship with Warp Drive".into()),
+            name: Some("Starship USS Enterprise".to_string()),
+            tag_id: Some(Addr::unchecked(tag_id)),
+            ..Metadata::default()
+        }),
+        token_key: None,
+        token_key_version: None,
+        is_tag: None,
+        parent_tag_id: None,
+    });
+
+
+    // but tag owner can!
+    let _ = execute(deps.as_mut(), mock_env(), allowed, mint_ok_msg).unwrap();
+
+
+
+
+    // // list the token_ids
+    // let tokens = contract.all_tokens(deps.as_ref(), None, None).unwrap();
+    // assert_eq!(1, tokens.tokens.len());
+    // assert_eq!(vec![token_id], tokens.tokens);
+
+    // let test_public_token_key = "1".to_string();
+    // let test_public_token_key_version = 1;
+
+    // let mint_msg = ExecuteMsg::Mint(MintMsg {
+    //     token_id: token_id.clone(),
+    //     owner: String::from("whoever"),
+    //     token_uri: Some(token_uri.clone()),
+    //     extension: Some(Metadata {
+    //         watch_price: Some(Uint128::from(100000u128)), // 0.1 Luna
+    //         description: Some("Spaceship with Warp Drive".into()),
+    //         name: Some("Starship USS Enterprise".to_string()),
+    //         ..Metadata::default()
+    //     }),
+    //     token_key: Some(test_public_token_key.clone()),
+    //     token_key_version: Some(test_public_token_key_version),
+    //     is_tag: None,
+    //     parent_tag_id: None,
+    // });
+
+    // let allowed = mock_info("whoever", &[]);
+    // let _ = execute(deps.as_mut(), mock_env(), allowed, mint_msg).unwrap();
+
+    // // it worked, let's query the public key (visible to anybody)
+    // let media_addr = Addr::unchecked(token_id.clone());
+    // let res = query(deps.as_ref(), mock_env(), QueryMsg::GetPublicKey { media: media_addr.clone() }).unwrap();
+    // let value: PublicKeyResponse = from_binary(&res).unwrap();
+
+    // assert_eq!(test_public_token_key, value.token_key);
+    // assert_eq!(test_public_token_key_version, value.token_key_version);
 
 
 

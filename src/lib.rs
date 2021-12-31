@@ -17,7 +17,7 @@ use cw0::{NativeBalance};
 
 pub use crate::error::ContractError;
 
-pub use crate::msg::{Extension, Metadata, ExecuteMsg, MintMsg, QueryMsg, CountResponse, KeyResponse, BalanceResponse, PriceResponse, PublicKeyResponse, WithdrawResponse};
+pub use crate::msg::{Extension, Metadata, ExecuteMsg, MintMsg, MintTagMsg, QueryMsg, CountResponse, KeyResponse, BalanceResponse, TagsResponse, PriceResponse, PublicKeyResponse, WithdrawResponse};
 
 pub type PepperContract<'a> = cw721_base::Cw721Contract<'a, Extension, Empty>;
 pub type TokenInfoWithExtension = TokenInfo<Extension>;
@@ -94,7 +94,7 @@ impl PepperMethods for PepperContract<'_> {
 pub type Cw712ExecuteMessage = cw721_base::msg::ExecuteMsg<Extension>;
 
 // use crate::state::{State, STATE, MEDIA_KEY, MediaKey};
-use crate::state::{State, STATE, MEDIA_KEY, MediaKey, BALANCE_HOLDER, BalanceHolder, GenericBalance, MEDIA_PUBLIC_KEY, MediaPublicKey};
+use crate::state::{State, STATE, MEDIA_KEY, MediaKey, BALANCE_HOLDER, BalanceHolder, GenericBalance, MEDIA_PUBLIC_KEY, MediaPublicKey, TAG, Tag, };
 
 
 
@@ -145,6 +145,7 @@ pub mod entry {
 	        ExecuteMsg::FillKey { media, addr, key } => try_fill_key(deps, info, media, addr, key),
 	        ExecuteMsg::Withdraw {  } => try_withdraw(deps, env, info),
 	        ExecuteMsg::Mint(msg) => try_mint(deps, info, msg),
+	        ExecuteMsg::MintTag(msg) => try_mint_tag(deps, info, msg),
 	        ExecuteMsg::Burn { token_id } => try_burn(deps, env, info, token_id),
 	        _ => default_execute_to_extended(deps, env, info, msg)
 	    }
@@ -247,6 +248,32 @@ pub mod entry {
 	    return Err(ContractError::Unauthorized {});
     }
 
+    pub fn try_mint_tag(
+        deps: DepsMut,
+        info: MessageInfo,
+        msg: MintTagMsg,
+    ) -> Result<Response, ContractError> {
+
+        // create the tag
+        let tag = Tag {
+            owner: info.sender.clone(),
+            tag_id: msg.tag_id.clone(),
+            count: 0,
+            is_private: msg.is_private,
+            main_token_id: None,
+        };
+
+        TAG.update(deps.storage, &msg.tag_id, |old| match old {
+                Some(_) => Err(ContractError::Claimed {}),
+                None => Ok(tag),
+            })?;
+
+        Ok(Response::new()
+            .add_attribute("action", "mint_tag")
+            .add_attribute("minter", info.sender)
+            .add_attribute("tag_id", msg.tag_id))
+    }
+
     pub fn try_mint(
         deps: DepsMut,
         info: MessageInfo,
@@ -276,6 +303,32 @@ pub mod entry {
         	extension.watch_price = Some(price_to_set); // take the price from message
         } else {
         	extension.watch_price = Some(original_contract.purchase_price()); // default one
+        }
+
+        if extension.tag_id.is_some() {
+        	// minting the nft into some tag as parent
+
+        	// 1st - load the tag information
+        	//
+        	let tag_id = extension.tag_id.clone().unwrap();
+	    	let tag_info = TAG.load(deps.storage, &tag_id)?;
+
+	    	// 2nd - check tag access settings
+	    	if tag_info.is_private {
+	    		// only tag owner can mint into this tag
+	    		if tag_info.owner != msg.owner {
+			        return Err(ContractError::Unauthorized {});
+	    		}
+	    	}
+
+	    	// @todo: additional logic
+
+	    	// 3rd - update tag items count
+	        TAG.update(deps.storage, &tag_id, |old| -> StdResult<_> {
+	            let mut tag = old.unwrap();
+	            tag.count = tag.count + 1;
+	            Ok(tag)
+	        })?;
         }
 
         let option_extension = Some(extension);
@@ -515,7 +568,7 @@ pub mod entry {
 	}
 
 
-	pub use crate::queries::{query_count, query_key, query_balance, query_public_key, query_minimum_price};
+	pub use crate::queries::{query_count, query_key, query_balance, query_public_key, query_minimum_price, query_tags};
 
 
 	pub fn query_price(deps: Deps, media: Addr) -> StdResult<PriceResponse> {
@@ -540,6 +593,7 @@ pub mod entry {
     	// let contract = PepperContract::default();
 
 	    match msg {
+	        QueryMsg::Tags { start_after, limit, } => to_binary(&query_tags(deps, start_after, limit)?),
 	        QueryMsg::GetCount {} => to_binary(&query_count(deps)?),
 	        QueryMsg::GetKey { media, addr } => to_binary(&query_key(deps, media, addr)?),
 	        QueryMsg::GetBalance { addr } => to_binary(&query_balance(deps, addr)?),
