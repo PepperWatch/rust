@@ -94,7 +94,7 @@ impl PepperMethods for PepperContract<'_> {
 pub type Cw712ExecuteMessage = cw721_base::msg::ExecuteMsg<Extension>;
 
 // use crate::state::{State, STATE, MEDIA_KEY, MediaKey};
-use crate::state::{State, STATE, MEDIA_KEY, MediaKey, BALANCE_HOLDER, BalanceHolder, GenericBalance, MEDIA_PUBLIC_KEY, MediaPublicKey, TAG, Tag, };
+use crate::state::{State, STATE, MEDIA_KEY, MediaKey, BALANCE_HOLDER, BalanceHolder, GenericBalance, MEDIA_PUBLIC_KEY, MediaPublicKey, tags, Tag };
 
 
 
@@ -263,7 +263,7 @@ pub mod entry {
             main_token_id: None,
         };
 
-        TAG.update(deps.storage, &msg.tag_id, |old| match old {
+        tags().update(deps.storage, &msg.tag_id, |old| match old {
                 Some(_) => Err(ContractError::Claimed {}),
                 None => Ok(tag),
             })?;
@@ -311,7 +311,7 @@ pub mod entry {
         	// 1st - load the tag information
         	//
         	let tag_id = extension.tag_id.clone().unwrap();
-	    	let tag_info = TAG.load(deps.storage, &tag_id)?;
+	    	let tag_info = tags().load(deps.storage, &tag_id)?;
 
 	    	// 2nd - check tag access settings
 	    	if tag_info.is_private {
@@ -324,7 +324,7 @@ pub mod entry {
 	    	// @todo: additional logic
 
 	    	// 3rd - update tag items count
-	        TAG.update(deps.storage, &tag_id, |old| -> StdResult<_> {
+	        tags().update(deps.storage, &tag_id, |old| -> StdResult<_> {
 	            let mut tag = old.unwrap();
 	            tag.count = tag.count + 1;
 	            Ok(tag)
@@ -568,7 +568,7 @@ pub mod entry {
 	}
 
 
-	pub use crate::queries::{query_count, query_key, query_balance, query_public_key, query_minimum_price, query_tags};
+	pub use crate::queries::{query_count, query_key, query_balance, query_public_key, query_minimum_price, query_all_tags, query_tags};
 
 
 	pub fn query_price(deps: Deps, media: Addr) -> StdResult<PriceResponse> {
@@ -593,7 +593,8 @@ pub mod entry {
     	// let contract = PepperContract::default();
 
 	    match msg {
-	        QueryMsg::Tags { start_after, limit, } => to_binary(&query_tags(deps, start_after, limit)?),
+            QueryMsg::Tags { owner, start_after, limit, } => to_binary(&query_tags(deps, owner, start_after, limit)?),
+	        QueryMsg::AllTags { start_after, limit, } => to_binary(&query_all_tags(deps, start_after, limit)?),
 	        QueryMsg::GetCount {} => to_binary(&query_count(deps)?),
 	        QueryMsg::GetKey { media, addr } => to_binary(&query_key(deps, media, addr)?),
 	        QueryMsg::GetBalance { addr } => to_binary(&query_balance(deps, addr)?),

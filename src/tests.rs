@@ -1304,7 +1304,7 @@ fn minting_the_private_tag() {
 
 
     // no tags at all for now
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::Tags { start_after: None, limit: None}).unwrap();
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::AllTags { start_after: None, limit: None}).unwrap();
     let value: TagsResponse = from_binary(&res).unwrap();
     assert_eq!(0, value.tags.len());
 
@@ -1319,9 +1319,20 @@ fn minting_the_private_tag() {
     let _ = execute(deps.as_mut(), mock_env(), allowed.clone(), mint_tag_msg).unwrap();
 
     // there is 1 tag now
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::Tags { start_after: None, limit: None}).unwrap();
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::AllTags { start_after: None, limit: None}).unwrap();
     let value: TagsResponse = from_binary(&res).unwrap();
     assert_eq!(1, value.tags.len());
+
+    // there is 1 tag for this owner now
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Tags { owner: "whoever".to_string(), start_after: None, limit: None}).unwrap();
+    let value: TagsResponse = from_binary(&res).unwrap();
+    assert_eq!(1, value.tags.len());
+
+    // but still nothing for other addresses
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Tags { owner: "some_other_minter".to_string(), start_after: None, limit: None}).unwrap();
+    let value: TagsResponse = from_binary(&res).unwrap();
+    assert_eq!(0, value.tags.len());
+
 
     // quick check that as tag is private, other users can not mint the token into it
 

@@ -3,7 +3,7 @@
 use cosmwasm_std::{Deps, Addr, StdResult, Order};
 pub use cw721_base::{ContractError as Cw721ContractError,InstantiateMsg, MinterResponse};
 pub use crate::msg::{Extension, Metadata, ExecuteMsg, MintMsg, QueryMsg, CountResponse, KeyResponse, BalanceResponse, PriceResponse, PublicKeyResponse, TagsResponse};
-use crate::state::{STATE, MEDIA_KEY, BALANCE_HOLDER, MEDIA_PUBLIC_KEY, TAG};
+use crate::state::{STATE, MEDIA_KEY, BALANCE_HOLDER, MEDIA_PUBLIC_KEY, tags};
 
 use cw_storage_plus::Bound;
 
@@ -13,13 +13,19 @@ const MAX_LIMIT: u32 = 30;
 
 pub fn query_tags(
     deps: Deps,
+    owner: String,
     start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<TagsResponse> {
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
     let start = start_after.map(Bound::exclusive);
 
-    let tags: StdResult<Vec<Addr>> = TAG
+    let owner_addr = deps.api.addr_validate(&owner)?;
+
+    let tags: StdResult<Vec<Addr>> = tags()
+        .idx
+        .owner
+        .prefix(owner_addr)
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         // .map(|item| item.map(|(k, _)| k))
@@ -29,6 +35,23 @@ pub fn query_tags(
     Ok(TagsResponse { tags: tags? })
 }
 
+pub fn query_all_tags(
+    deps: Deps,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<TagsResponse> {
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+    let start = start_after.map(Bound::exclusive);
+
+    let tags: StdResult<Vec<Addr>> = tags()
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        // .map(|item| item.map(|(k, _)| k))
+        .map(|x| x.map(|(_addr, item)| item.tag_id))
+        .collect();
+
+    Ok(TagsResponse { tags: tags? })
+}
 
 pub fn query_minimum_price(deps: Deps) -> StdResult<PriceResponse> {
     let state = STATE.load(deps.storage)?;

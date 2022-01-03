@@ -206,7 +206,13 @@ pub enum QueryMsg {
     Minter {},
 
     //
+    AllTags {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
     Tags {
+        owner: String,
         start_after: Option<String>,
         limit: Option<u32>,
     },

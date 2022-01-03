@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Addr, Coin, Uint128};
 // use cosmwasm_std::{Addr, Coin, Uint128, Uint256};
-use cw_storage_plus::{Item, Map};
+use cw_storage_plus::{Item, Map, MultiIndex, Index, IndexedMap, IndexList};
 use cw20::{Balance, Cw20CoinVerified};
 
 // Key to decode specific media for specific user
@@ -42,7 +42,29 @@ pub struct Tag {
     pub is_private: bool,
 }
 
-pub const TAG: Map<&Addr, Tag> = Map::new("tag");
+pub struct TagIndexes<'a> {
+  pub owner: MultiIndex<'a, (Addr, Vec<u8>), Tag>,
+}
+
+impl<'a> IndexList<Tag> for TagIndexes<'a> {
+  fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Tag>> + '_> {
+    let v: Vec<&dyn Index<Tag>> = vec![&self.owner];
+    Box::new(v.into_iter())
+  }
+}
+
+pub fn tags<'a>() -> IndexedMap<'a, &'a Addr, Tag, TagIndexes<'a>> {
+  let indexes = TagIndexes {
+    owner: MultiIndex::new(
+      |d: &Tag, k: Vec<u8>| (d.owner.clone(), k),
+      "tags",
+      "tags__owner",
+    ),
+  };
+  IndexedMap::new("tags", indexes)
+}
+
+// pub const TAG: Map<&Addr, Tag> = Map::new("tag");
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug, Default)]
 pub struct GenericBalance {
