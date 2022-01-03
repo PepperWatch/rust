@@ -102,8 +102,6 @@ pub enum AsExecuteMsg<T> {
     /// Mint a new NFT, can only be called by the contract minter
     Mint(AsMintMsg<T>),
 
-    /// Mint a new NFT, can only be called by the contract minter
-    MintTag(MintTagMsg),
 
     /// Burn an NFT the sender has access to
     Burn { token_id: String },
@@ -111,6 +109,13 @@ pub enum AsExecuteMsg<T> {
 
     /// Our custom methods:
     ///
+    /// Mint an NFT tag
+    MintTag(MintTagMsg),
+
+    /// Burn an NFT tag
+    BurnTag { tag_id: Addr },
+
+
     SetMinimumPrice { price: Uint128 },
 
     SetPrice { media: Addr, price: Uint128 },
@@ -123,14 +128,14 @@ pub enum AsExecuteMsg<T> {
 pub type ExecuteMsg = AsExecuteMsg<Extension>;
 
 impl ExecuteMsg {
-    pub fn into_cw721(self) -> cw721_base::msg::ExecuteMsg<Extension> {
+    pub fn into_cw721(self) -> crate::local_cw721_base::msg::ExecuteMsg<Extension> {
         match self {
-            ExecuteMsg::TransferNft { recipient, token_id } => cw721_base::msg::ExecuteMsg::TransferNft { recipient, token_id },
-            ExecuteMsg::SendNft { contract, token_id, msg } => cw721_base::msg::ExecuteMsg::SendNft { contract, token_id, msg },
-            ExecuteMsg::Approve { spender, token_id, expires } => cw721_base::msg::ExecuteMsg::Approve { spender, token_id, expires },
-            ExecuteMsg::Revoke { spender, token_id } => cw721_base::msg::ExecuteMsg::Revoke { spender, token_id },
-            ExecuteMsg::ApproveAll { operator, expires } => cw721_base::msg::ExecuteMsg::ApproveAll { operator, expires },
-            ExecuteMsg::RevokeAll { operator } => cw721_base::msg::ExecuteMsg::RevokeAll { operator },
+            ExecuteMsg::TransferNft { recipient, token_id } => crate::local_cw721_base::msg::ExecuteMsg::TransferNft { recipient, token_id },
+            ExecuteMsg::SendNft { contract, token_id, msg } => crate::local_cw721_base::msg::ExecuteMsg::SendNft { contract, token_id, msg },
+            ExecuteMsg::Approve { spender, token_id, expires } => crate::local_cw721_base::msg::ExecuteMsg::Approve { spender, token_id, expires },
+            ExecuteMsg::Revoke { spender, token_id } => crate::local_cw721_base::msg::ExecuteMsg::Revoke { spender, token_id },
+            ExecuteMsg::ApproveAll { operator, expires } => crate::local_cw721_base::msg::ExecuteMsg::ApproveAll { operator, expires },
+            ExecuteMsg::RevokeAll { operator } => crate::local_cw721_base::msg::ExecuteMsg::RevokeAll { operator },
             // ExecuteMsg::Burn { token_id } => cw721_base::msg::ExecuteMsg::Burn { token_id },
             _ => panic!("unimplemented methods")
         }
@@ -227,17 +232,17 @@ pub enum QueryMsg {
 }
 
 impl QueryMsg {
-    pub fn into_cw721(self) -> cw721_base::msg::QueryMsg {
+    pub fn into_cw721(self) -> crate::local_cw721_base::msg::QueryMsg {
         match self {
-            QueryMsg::OwnerOf { token_id, include_expired } => cw721_base::msg::QueryMsg::OwnerOf { token_id, include_expired },
-            QueryMsg::ApprovedForAll { owner, include_expired, start_after, limit } => cw721_base::msg::QueryMsg::ApprovedForAll { owner, include_expired, start_after, limit },
-            QueryMsg::NumTokens {  } => cw721_base::msg::QueryMsg::NumTokens {  },
-            QueryMsg::ContractInfo {  } => cw721_base::msg::QueryMsg::ContractInfo {  },
-            QueryMsg::NftInfo { token_id } => cw721_base::msg::QueryMsg::NftInfo { token_id },
-            QueryMsg::AllNftInfo { token_id, include_expired } => cw721_base::msg::QueryMsg::AllNftInfo { token_id, include_expired },
-            QueryMsg::Tokens { owner, start_after, limit } => cw721_base::msg::QueryMsg::Tokens { owner, start_after, limit },
-            QueryMsg::AllTokens { start_after, limit } => cw721_base::msg::QueryMsg::AllTokens { start_after, limit },
-            QueryMsg::Minter {  } => cw721_base::msg::QueryMsg::Minter {  },
+            QueryMsg::OwnerOf { token_id, include_expired } => crate::local_cw721_base::msg::QueryMsg::OwnerOf { token_id, include_expired },
+            QueryMsg::ApprovedForAll { owner, include_expired, start_after, limit } => crate::local_cw721_base::msg::QueryMsg::ApprovedForAll { owner, include_expired, start_after, limit },
+            QueryMsg::NumTokens {  } => crate::local_cw721_base::msg::QueryMsg::NumTokens {  },
+            QueryMsg::ContractInfo {  } => crate::local_cw721_base::msg::QueryMsg::ContractInfo {  },
+            QueryMsg::NftInfo { token_id } => crate::local_cw721_base::msg::QueryMsg::NftInfo { token_id },
+            QueryMsg::AllNftInfo { token_id, include_expired } => crate::local_cw721_base::msg::QueryMsg::AllNftInfo { token_id, include_expired },
+            QueryMsg::Tokens { owner, start_after, limit } => crate::local_cw721_base::msg::QueryMsg::Tokens { owner, start_after, limit },
+            QueryMsg::AllTokens { start_after, limit } => crate::local_cw721_base::msg::QueryMsg::AllTokens { start_after, limit },
+            QueryMsg::Minter {  } => crate::local_cw721_base::msg::QueryMsg::Minter {  },
             _ => panic!("unimplemented methods")
         }
     }

@@ -6,9 +6,14 @@ pub mod msg;
 pub mod error;
 pub mod queries;
 
+
+mod local_cw721_base;
+pub use local_cw721_base::state::{TokenInfo};
+
 use cosmwasm_std::{Empty,DepsMut,Addr, Coin, Uint128, to_binary, Decimal,BankMsg,SubMsg};
-pub use cw721_base::{ContractError as Cw721ContractError,InstantiateMsg, MinterResponse};
-pub use cw721_base::state::{TokenInfo};
+pub use local_cw721_base::{ContractError as Cw721ContractError,InstantiateMsg, MinterResponse};
+// pub use cw721_base::state::{TokenInfo};
+
 
 // use cosmwasm_std::{Deps, Addr, StdResult};
 
@@ -19,7 +24,7 @@ pub use crate::error::ContractError;
 
 pub use crate::msg::{Extension, Metadata, ExecuteMsg, MintMsg, MintTagMsg, QueryMsg, CountResponse, KeyResponse, BalanceResponse, TagsResponse, PriceResponse, PublicKeyResponse, WithdrawResponse};
 
-pub type PepperContract<'a> = cw721_base::Cw721Contract<'a, Extension, Empty>;
+pub type PepperContract<'a> = local_cw721_base::Cw721Contract<'a, Extension, Empty>;
 pub type TokenInfoWithExtension = TokenInfo<Extension>;
 
 
@@ -146,6 +151,7 @@ pub mod entry {
 	        ExecuteMsg::Withdraw {  } => try_withdraw(deps, env, info),
 	        ExecuteMsg::Mint(msg) => try_mint(deps, info, msg),
 	        ExecuteMsg::MintTag(msg) => try_mint_tag(deps, info, msg),
+            ExecuteMsg::BurnTag { tag_id } => try_burn_tag(deps, info, tag_id),
 	        ExecuteMsg::Burn { token_id } => try_burn(deps, env, info, token_id),
 	        _ => default_execute_to_extended(deps, env, info, msg)
 	    }
@@ -272,6 +278,27 @@ pub mod entry {
             .add_attribute("action", "mint_tag")
             .add_attribute("minter", info.sender)
             .add_attribute("tag_id", msg.tag_id))
+    }
+
+
+    pub fn try_burn_tag(
+        deps: DepsMut,
+        info: MessageInfo,
+        tag_id: Addr,
+    ) -> Result<Response, ContractError> {
+
+        let tags = tags();
+        let tag = tags.load(deps.storage, &tag_id)?;
+        if tag.owner != info.sender {
+            return Err(ContractError::Unauthorized {});
+        }
+
+        tags.remove(deps.storage, &tag_id)?;
+
+        Ok(Response::new()
+            .add_attribute("action", "burn_tag")
+            .add_attribute("sender", info.sender)
+            .add_attribute("tag_id", tag_id))
     }
 
     pub fn try_mint(
