@@ -43,25 +43,25 @@ pub struct Tag {
 }
 
 pub struct TagIndexes<'a> {
-  pub owner: MultiIndex<'a, (Addr, Vec<u8>), Tag>,
+    pub owner: MultiIndex<'a, (Addr, Vec<u8>), Tag>,
 }
 
 impl<'a> IndexList<Tag> for TagIndexes<'a> {
-  fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Tag>> + '_> {
-    let v: Vec<&dyn Index<Tag>> = vec![&self.owner];
-    Box::new(v.into_iter())
-  }
+    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Tag>> + '_> {
+        let v: Vec<&dyn Index<Tag>> = vec![&self.owner];
+        Box::new(v.into_iter())
+    }
 }
 
 pub fn tags<'a>() -> IndexedMap<'a, &'a Addr, Tag, TagIndexes<'a>> {
-  let indexes = TagIndexes {
-    owner: MultiIndex::new(
-      |d: &Tag, k: Vec<u8>| (d.owner.clone(), k),
-      "tags",
-      "tags__owner",
-    ),
-  };
-  IndexedMap::new("tags", indexes)
+    let indexes = TagIndexes {
+        owner: MultiIndex::new(
+                |d: &Tag, k: Vec<u8>| (d.owner.clone(), k),
+                "tags",
+                "tags__owner",
+            ),
+    };
+    IndexedMap::new("tags", indexes)
 }
 
 // pub const TAG: Map<&Addr, Tag> = Map::new("tag");

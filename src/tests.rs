@@ -14,6 +14,7 @@ use cw721::{
 use crate::{
     ContractError, PepperContract, ExecuteMsg, InstantiateMsg, MintMsg, MintTagMsg, QueryMsg, Metadata, CountResponse, BalanceResponse, PriceResponse, PublicKeyResponse, TagsResponse,
 };
+use crate::local_cw721_base::query::TokensResponse;
 
 use crate::entry::{execute,query,instantiate};
 
@@ -1322,16 +1323,25 @@ fn minting_the_private_tag() {
     let res = query(deps.as_ref(), mock_env(), QueryMsg::AllTags { start_after: None, limit: None}).unwrap();
     let value: TagsResponse = from_binary(&res).unwrap();
     assert_eq!(1, value.tags.len());
+    assert_eq!(tag_id, value.tags[0]);
 
     // there is 1 tag for this owner now
     let res = query(deps.as_ref(), mock_env(), QueryMsg::Tags { owner: "whoever".to_string(), start_after: None, limit: None}).unwrap();
     let value: TagsResponse = from_binary(&res).unwrap();
     assert_eq!(1, value.tags.len());
+    assert_eq!(tag_id, value.tags[0]);
 
     // but still nothing for other addresses
     let res = query(deps.as_ref(), mock_env(), QueryMsg::Tags { owner: "some_other_minter".to_string(), start_after: None, limit: None}).unwrap();
     let value: TagsResponse = from_binary(&res).unwrap();
     assert_eq!(0, value.tags.len());
+
+
+
+    // tokens list in this tag is empty for now
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::TagTokens { tag: Addr::unchecked(tag_id), start_after: None, limit: None}).unwrap();
+    let value: TokensResponse = from_binary(&res).unwrap();
+    assert_eq!(0, value.tokens.len());
 
 
     // quick check that as tag is private, other users can not mint the token into it
@@ -1388,6 +1398,16 @@ fn minting_the_private_tag() {
 
 
 
+    // tokens list in this tag has 1 item now
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::TagTokens { tag: Addr::unchecked(tag_id), start_after: None, limit: None}).unwrap();
+    let value: TokensResponse = from_binary(&res).unwrap();
+    assert_eq!(1, value.tokens.len());
+    assert_eq!(token_id, value.tokens[0]);
+
+    // nothing for others tags
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::TagTokens { tag: Addr::unchecked("someothertagid"), start_after: None, limit: None}).unwrap();
+    let value: TokensResponse = from_binary(&res).unwrap();
+    assert_eq!(0, value.tokens.len());
 
     // // list the token_ids
     // let tokens = contract.all_tokens(deps.as_ref(), None, None).unwrap();
