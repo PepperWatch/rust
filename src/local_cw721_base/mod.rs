@@ -2,7 +2,7 @@ mod contract_tests;
 // mod error;
 mod execute;
 pub mod msg;
-mod query;
+pub mod query;
 pub mod state;
 
 pub use crate::error::ContractError;
@@ -11,7 +11,7 @@ pub use crate::local_cw721_base::state::Cw721Contract;
 use cosmwasm_std::Empty;
 
 // This is a simple type to let us handle empty extensions
-pub type Extension = Option<Empty>;
+type Extension = Option<Empty>;
 
 // #[cfg(not(feature = "library"))]
 // pub mod entry {

@@ -7,9 +7,8 @@ use crate::state::{STATE, MEDIA_KEY, BALANCE_HOLDER, MEDIA_PUBLIC_KEY, tags};
 
 use cw_storage_plus::Bound;
 
-const DEFAULT_LIMIT: u32 = 10; // copied from cw721 -> query.rs
-const MAX_LIMIT: u32 = 30;
-
+pub const DEFAULT_LIMIT: u32 = 10; // copied from cw721 -> query.rs
+pub const MAX_LIMIT: u32 = 30;
 
 pub fn query_tags(
     deps: Deps,

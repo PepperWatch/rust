@@ -332,12 +332,13 @@ pub mod entry {
         	extension.watch_price = Some(original_contract.purchase_price()); // default one
         }
 
+        let tag_id;
         if extension.tag_id.is_some() {
         	// minting the nft into some tag as parent
 
         	// 1st - load the tag information
         	//
-        	let tag_id = extension.tag_id.clone().unwrap();
+        	tag_id = extension.tag_id.clone().unwrap();
 	    	let tag_info = tags().load(deps.storage, &tag_id)?;
 
 	    	// 2nd - check tag access settings
@@ -356,6 +357,8 @@ pub mod entry {
 	            tag.count = tag.count + 1;
 	            Ok(tag)
 	        })?;
+        } else {
+            tag_id = deps.api.addr_validate(&msg.owner)?;
         }
 
         let option_extension = Some(extension);
@@ -363,6 +366,7 @@ pub mod entry {
         // create the token
         let token = TokenInfo {
             owner: deps.api.addr_validate(&msg.owner)?,
+            tag: tag_id,
             approvals: vec![],
             token_uri: msg.token_uri,
             extension: option_extension,
@@ -595,7 +599,7 @@ pub mod entry {
 	}
 
 
-	pub use crate::queries::{query_count, query_key, query_balance, query_public_key, query_minimum_price, query_all_tags, query_tags};
+	pub use crate::queries::{query_count, query_key, query_balance, query_public_key, query_minimum_price, query_all_tags, query_tags, DEFAULT_LIMIT, MAX_LIMIT};
 
 
 	pub fn query_price(deps: Deps, media: Addr) -> StdResult<PriceResponse> {
@@ -615,11 +619,36 @@ pub mod entry {
     	}
 	}
 
+    use cosmwasm_std::{Order, StdError, };
+    use cw_storage_plus::Bound;
+    use crate::local_cw721_base::query::TokensResponse;
+
+    pub fn query_tag_tokens(deps: Deps, tag: Addr, start_after: Option<String>, limit: Option<u32>,) -> StdResult<TokensResponse> {
+        let contract = PepperContract::default();
+
+        let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+        let start = start_after.map(Bound::exclusive);
+
+        let pks: Vec<_> = contract
+            .tokens
+            .idx
+            .tag
+            .prefix(tag)
+            .keys(deps.storage, start, None, Order::Ascending)
+            .take(limit)
+            .collect();
+
+        let res: Result<Vec<_>, _> = pks.iter().map(|v| String::from_utf8(v.to_vec())).collect();
+        let tokens = res.map_err(StdError::invalid_utf8)?;
+        Ok(TokensResponse { tokens })
+    }
+
     #[entry_point]
     pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     	// let contract = PepperContract::default();
 
 	    match msg {
+            QueryMsg::TagTokens { tag, start_after, limit, } => to_binary(&query_tag_tokens(deps, tag, start_after, limit)?),
             QueryMsg::Tags { owner, start_after, limit, } => to_binary(&query_tags(deps, owner, start_after, limit)?),
 	        QueryMsg::AllTags { start_after, limit, } => to_binary(&query_all_tags(deps, start_after, limit)?),
 	        QueryMsg::GetCount {} => to_binary(&query_count(deps)?),

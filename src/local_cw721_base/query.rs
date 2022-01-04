@@ -4,7 +4,7 @@ use serde::Serialize;
 use cosmwasm_std::{to_binary, Binary, BlockInfo, Deps, Env, Order, Pair, StdError, StdResult};
 
 use cw0::maybe_addr;
-use cw721::{
+pub use cw721::{
     AllNftInfoResponse, ApprovedForAllResponse, ContractInfoResponse, CustomMsg, Cw721Query,
     Expiration, NftInfoResponse, NumTokensResponse, OwnerOfResponse, TokensResponse,
 };

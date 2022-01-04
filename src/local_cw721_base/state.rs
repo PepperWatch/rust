@@ -42,6 +42,7 @@ where
             "operators",
             "tokens",
             "tokens__owner",
+            "tokens__tag",
         )
     }
 }
@@ -57,9 +58,11 @@ where
         operator_key: &'a str,
         tokens_key: &'a str,
         tokens_owner_key: &'a str,
+        tokens_tag_key: &'a str,
     ) -> Self {
         let indexes = TokenIndexes {
             owner: MultiIndex::new(token_owner_idx, tokens_key, tokens_owner_key),
+            tag: MultiIndex::new(token_tag_idx, tokens_key, tokens_tag_key),
         };
         Self {
             contract_info: Item::new(contract_key),
@@ -86,7 +89,7 @@ where
 pub struct TokenInfo<T> {
     /// The owner of the newly minted NFT
     pub owner: Addr,
-    pub tag: Option<Addr>,
+    pub tag: Addr,
     /// Approvals are stored here, as we clear them all upon transfer and cannot accumulate much
     pub approvals: Vec<Approval>,
 
@@ -119,6 +122,7 @@ where
 {
     // pk goes to second tuple element
     pub owner: MultiIndex<'a, (Addr, Vec<u8>), TokenInfo<T>>,
+    pub tag: MultiIndex<'a, (Addr, Vec<u8>), TokenInfo<T>>,
 }
 
 impl<'a, T> IndexList<TokenInfo<T>> for TokenIndexes<'a, T>
@@ -126,7 +130,7 @@ where
     T: Serialize + DeserializeOwned + Clone,
 {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<TokenInfo<T>>> + '_> {
-        let v: Vec<&dyn Index<TokenInfo<T>>> = vec![&self.owner];
+        let v: Vec<&dyn Index<TokenInfo<T>>> = vec![&self.owner, &self.tag];
         Box::new(v.into_iter())
     }
 }
@@ -135,5 +139,5 @@ pub fn token_owner_idx<T>(d: &TokenInfo<T>, k: Vec<u8>) -> (Addr, Vec<u8>) {
     (d.owner.clone(), k)
 }
 pub fn token_tag_idx<T>(d: &TokenInfo<T>, k: Vec<u8>) -> (Addr, Vec<u8>) {
-    (d.tag.unwrap_or_default().clone(), k)
+    (d.tag.clone(), k)
 }

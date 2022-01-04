@@ -94,6 +94,7 @@ where
         // create the token
         let token = TokenInfo {
             owner: deps.api.addr_validate(&msg.owner)?,
+            tag:deps.api.addr_validate(&msg.owner)?,
             approvals: vec![],
             token_uri: msg.token_uri,
             extension: msg.extension,
