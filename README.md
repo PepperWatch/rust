@@ -61,6 +61,27 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
 
+    // Tokens under specific tag
+    TagTokens {
+        tag: Addr,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
+    // all  tags
+    AllTags {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
+    // tags by owner
+    Tags {
+        owner: String,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+    //
+
     // Return the minter
     Minter {},
 
@@ -122,6 +143,14 @@ pub enum AsExecuteMsg<T> {
 
     /// Our custom methods:
     ///
+    /// Mint an NFT tag
+    MintTag(MintTagMsg),
+
+    /// Burn an NFT tag
+    BurnTag { tag_id: Addr },
+    //
+    /// Our custom methods:
+    ///
     /// Specify minimum per view price in uluna
     /// SetMinimumPrice - may be called by contract owner only. Price is in uluna (1/1000000) of Luna
     SetMinimumPrice { price: Uint128 },
@@ -141,6 +170,12 @@ pub enum AsExecuteMsg<T> {
 
     /// Withdraw earnings. Sends all earned uluna (if any) to sender.address
     Withdraw {  },
+}
+
+
+pub struct MintTagMsg {
+    pub tag_id: Addr,
+    pub is_private: bool, // is_private == true - only owner can mint into this tag
 }
 ```
 
