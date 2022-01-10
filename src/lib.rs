@@ -542,16 +542,27 @@ pub mod entry {
 	    	let contract = PepperContract::default();
 
 	    	let minimum_amount = contract.watch_price(&mut deps, media.to_string(), Some(info.sender.clone()) );
+            let state = STATE.load(deps.storage)?;
 
-	    	if !minimum_amount.is_zero() {
+            let expected_amount = minimum_amount + state.minimum_watch_price;
+
+	    	if !expected_amount.is_zero() {
 		    	let balance = NativeBalance(info.funds);
 
-		        // let minimum_amount = Uint128::from(1000000u128); // 1million uluna == 1 luna
-		        let expected_coin = Coin { denom: "uluna".to_string(), amount: minimum_amount };
+		        let expected_coin = Coin { denom: "uluna".to_string(), amount: expected_amount };
 
 		        if !balance.has(&expected_coin) {
 		            return Err(ContractError::NotEnoughFunds {});
 		        }
+
+                // Send state.minimum_watch_price ... 10% to contract creator:
+
+                let contract_creator = contract.minter.load(deps.storage).ok().unwrap();
+                let percent = Decimal::percent(10u64);
+                let amount = minimum_amount * percent + state.minimum_watch_price; // amount is same 10%, but when optimized, no extra gas, so lets keep it for reading
+                let coint_to_store = Coin { denom: "uluna".to_string(), amount: amount };
+                store_coins(&mut deps, contract_creator, coint_to_store);
+
 
 		        // Send 80% to NFT's owner:
 
@@ -569,13 +580,6 @@ pub mod entry {
 		        let coint_to_store = Coin { denom: "uluna".to_string(), amount: amount };
 		        store_coins(&mut deps, coints_to, coint_to_store);
 
-		        // Send 10% to contract creator:
-
-		        let contract_creator = contract.minter.load(deps.storage).ok().unwrap();
-		        let percent = Decimal::percent(10u64);
-		        let amount = minimum_amount * percent; // amount is same 10%, but it's optimized, no extra gas, so lets keep it for reading
-		        let coint_to_store = Coin { denom: "uluna".to_string(), amount: amount };
-		        store_coins(&mut deps, contract_creator, coint_to_store);
 	    	}
 
 	        let owner = info.sender.clone();
