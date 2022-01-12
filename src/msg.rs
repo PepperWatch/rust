@@ -52,8 +52,8 @@ pub struct AsMintMsg<T> {
     /// Any custom extension used by this contract
     pub extension: T,
 
-    pub is_tag: Option<bool>,
-    pub parent_tag_id: Option<String>,
+    // pub is_tag: Option<bool>,
+    // pub parent_tag_id: Option<String>,
 }
 
 pub type MintMsg = AsMintMsg<Extension>;

@@ -238,8 +238,6 @@ fn minting() {
         extension: None,
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     // Can!
@@ -293,8 +291,6 @@ fn minting() {
         extension: None,
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     let allowed = mock_info(MINTER, &[]);
@@ -329,8 +325,6 @@ fn mint_and_buy() {
         extension: None,
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     // minter can mint
@@ -384,8 +378,6 @@ fn set_the_price_with_mint() {
         }),
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     // whoever can mint
@@ -521,8 +513,6 @@ fn minimum_price_handling() {
         }),
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     // can't mint setting watch price to lower then default minimum
@@ -545,8 +535,6 @@ fn minimum_price_handling() {
         }),
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     // can't mint setting watch price to lower then default minimum
@@ -570,8 +558,6 @@ fn minimum_price_handling() {
         }),
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
     let allowed = mock_info(nft_minter, &[]);
     let _ = execute(deps.as_mut(), mock_env(), allowed, mint_msg).unwrap();
@@ -626,8 +612,6 @@ fn use_metadata_extension() {
         }),
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     };
     let exec_msg = ExecuteMsg::Mint(mint_msg.clone());
 
@@ -660,8 +644,6 @@ fn burning() {
         extension: None,
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     let burn_msg = ExecuteMsg::Burn { token_id };
@@ -711,8 +693,6 @@ fn transferring_nft() {
         extension: None,
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     let minter = mock_info(&String::from("venus"), &[]);
@@ -784,8 +764,6 @@ fn sending_nft() {
         extension: None,
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     let minter = mock_info(MINTER, &[]);
@@ -851,8 +829,6 @@ fn approving_revoking() {
         extension: None,
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     let minter = mock_info(MINTER, &[]);
@@ -955,8 +931,6 @@ fn approving_all_revoking_all() {
         extension: None,
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     let minter = mock_info(MINTER, &[]);
@@ -970,8 +944,6 @@ fn approving_all_revoking_all() {
         extension: None,
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     execute(deps.as_mut(), mock_env(), minter, mint_msg2)
@@ -1171,8 +1143,6 @@ fn query_tokens_by_owner() {
         extension: None,
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     execute(deps.as_mut(), mock_env(), minter.clone(), mint_msg)
@@ -1185,8 +1155,6 @@ fn query_tokens_by_owner() {
         extension: None,
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     execute(deps.as_mut(), mock_env(), minter.clone(), mint_msg)
@@ -1199,8 +1167,6 @@ fn query_tokens_by_owner() {
         extension: None,
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     execute(deps.as_mut(), mock_env(), minter, mint_msg)
@@ -1268,8 +1234,6 @@ fn storing_the_public_key_with_mint() {
         }),
         token_key: Some(test_public_token_key.clone()),
         token_key_version: Some(test_public_token_key_version),
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     let allowed = mock_info("whoever", &[]);
@@ -1365,8 +1329,6 @@ fn minting_the_private_tag() {
         }),
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
     let res = execute(deps.as_mut(), mock_env(), disallowed, mint_msg.clone());
@@ -1388,8 +1350,6 @@ fn minting_the_private_tag() {
         }),
         token_key: None,
         token_key_version: None,
-        is_tag: None,
-        parent_tag_id: None,
     });
 
 
