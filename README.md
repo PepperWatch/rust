@@ -176,6 +176,7 @@ pub enum AsExecuteMsg<T> {
 pub struct MintTagMsg {
     pub tag_id: Addr,
     pub is_private: bool, // is_private == true - only owner can mint into this tag
+    pub for_owners_of: Addr, // optional contract address of some nft collection, so only owners of it can view(ask for view keys) media under this tag
 }
 ```
 

@@ -9,6 +9,22 @@ pub struct TagsResponse {
     pub tags: Vec<Addr>,
 }
 
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct TagInfoResponse {
+    pub is_private: bool,
+    pub for_owners_of: Option<String>,
+    pub extra: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct MintTagMsg {
+    pub tag_id: Addr,
+    pub is_private: bool,
+    pub for_owners_of: Option<String>,
+    pub extra: Option<String>,
+}
+
+
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug, Default)]
 pub struct Trait {
     pub display_type: Option<String>,
@@ -51,19 +67,11 @@ pub struct AsMintMsg<T> {
     pub token_key_version: Option<u32>,
     /// Any custom extension used by this contract
     pub extension: T,
-
-    // pub is_tag: Option<bool>,
-    // pub parent_tag_id: Option<String>,
 }
 
 pub type MintMsg = AsMintMsg<Extension>;
 
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct MintTagMsg {
-    pub tag_id: Addr,
-    pub is_private: bool,
-}
 
 
 /// This is like Cw721ExecuteMsg but we add a Mint command for an owner
@@ -115,6 +123,8 @@ pub enum AsExecuteMsg<T> {
     /// Burn an NFT tag
     BurnTag { tag_id: Addr },
 
+    ///
+    CheckCollection { collection: Addr },
 
     SetMinimumPrice { price: Uint128 },
 
@@ -200,7 +210,7 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
     TagTokens {
-        tag: Addr,
+        tag_id: Addr,
         start_after: Option<String>,
         limit: Option<u32>,
     },
@@ -225,6 +235,10 @@ pub enum QueryMsg {
         owner: String,
         start_after: Option<String>,
         limit: Option<u32>,
+    },
+
+    TagInfo {
+        tag_id: Addr,
     },
 
     // GetCount returns the current count as a json-encoded number

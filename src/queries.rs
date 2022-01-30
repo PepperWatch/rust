@@ -2,13 +2,28 @@
 // use cosmwasm_std::{Deps, Addr, StdResult, Uint256};
 use cosmwasm_std::{Deps, Addr, StdResult, Order};
 pub use cw721_base::{ContractError as Cw721ContractError,InstantiateMsg, MinterResponse};
-pub use crate::msg::{Extension, Metadata, ExecuteMsg, MintMsg, QueryMsg, CountResponse, KeyResponse, BalanceResponse, PriceResponse, PublicKeyResponse, TagsResponse};
+pub use crate::msg::{Extension, Metadata, ExecuteMsg, MintMsg, QueryMsg, CountResponse, KeyResponse, BalanceResponse, PriceResponse, PublicKeyResponse, TagsResponse, TagInfoResponse};
 use crate::state::{STATE, MEDIA_KEY, BALANCE_HOLDER, MEDIA_PUBLIC_KEY, tags};
 
 use cw_storage_plus::Bound;
 
 pub const DEFAULT_LIMIT: u32 = 10; // copied from cw721 -> query.rs
 pub const MAX_LIMIT: u32 = 30;
+
+pub fn query_tag_info(
+    deps: Deps,
+    tag_id: Addr,
+) ->  StdResult<TagInfoResponse> {
+
+    let tag_info = tags()
+        .load(deps.storage, &tag_id)?;
+
+    Ok(TagInfoResponse {
+        is_private: tag_info.is_private,
+        extra: tag_info.extra,
+        for_owners_of: tag_info.for_owners_of,
+    })
+}
 
 pub fn query_tags(
     deps: Deps,

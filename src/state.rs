@@ -40,6 +40,9 @@ pub struct Tag {
     pub main_token_id: Option<String>,
     pub tag_id: Addr,
     pub is_private: bool,
+    pub for_owners_of: Option<String>,
+
+    pub extra: Option<String>,
 }
 
 pub struct TagIndexes<'a> {

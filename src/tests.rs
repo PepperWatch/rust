@@ -12,7 +12,7 @@ use cw721::{
 };
 
 use crate::{
-    ContractError, PepperContract, ExecuteMsg, InstantiateMsg, MintMsg, MintTagMsg, QueryMsg, Metadata, CountResponse, BalanceResponse, PriceResponse, PublicKeyResponse, TagsResponse,
+    ContractError, PepperContract, ExecuteMsg, InstantiateMsg, MintMsg, MintTagMsg, QueryMsg, Metadata, CountResponse, BalanceResponse, PriceResponse, PublicKeyResponse, TagsResponse, TagInfoResponse
 };
 use crate::local_cw721_base::query::TokensResponse;
 
@@ -1278,6 +1278,8 @@ fn minting_the_private_tag() {
     let mint_tag_msg = ExecuteMsg::MintTag(MintTagMsg {
         tag_id: Addr::unchecked(tag_id),
         is_private: true,
+        extra: None,
+        for_owners_of: None,
     });
 
     let allowed = mock_info("whoever", &[]);
@@ -1303,7 +1305,7 @@ fn minting_the_private_tag() {
 
 
     // tokens list in this tag is empty for now
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::TagTokens { tag: Addr::unchecked(tag_id), start_after: None, limit: None}).unwrap();
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::TagTokens { tag_id: Addr::unchecked(tag_id), start_after: None, limit: None}).unwrap();
     let value: TokensResponse = from_binary(&res).unwrap();
     assert_eq!(0, value.tokens.len());
 
@@ -1359,51 +1361,72 @@ fn minting_the_private_tag() {
 
 
     // tokens list in this tag has 1 item now
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::TagTokens { tag: Addr::unchecked(tag_id), start_after: None, limit: None}).unwrap();
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::TagTokens { tag_id: Addr::unchecked(tag_id), start_after: None, limit: None}).unwrap();
     let value: TokensResponse = from_binary(&res).unwrap();
     assert_eq!(1, value.tokens.len());
     assert_eq!(token_id, value.tokens[0]);
 
     // nothing for others tags
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::TagTokens { tag: Addr::unchecked("someothertagid"), start_after: None, limit: None}).unwrap();
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::TagTokens { tag_id: Addr::unchecked("someothertagid"), start_after: None, limit: None}).unwrap();
     let value: TokensResponse = from_binary(&res).unwrap();
     assert_eq!(0, value.tokens.len());
 
-    // // list the token_ids
-    // let tokens = contract.all_tokens(deps.as_ref(), None, None).unwrap();
-    // assert_eq!(1, tokens.tokens.len());
-    // assert_eq!(vec![token_id], tokens.tokens);
 
-    // let test_public_token_key = "1".to_string();
-    // let test_public_token_key_version = 1;
+}
 
-    // let mint_msg = ExecuteMsg::Mint(MintMsg {
-    //     token_id: token_id.clone(),
-    //     owner: String::from("whoever"),
-    //     token_uri: Some(token_uri.clone()),
-    //     extension: Some(Metadata {
-    //         watch_price: Some(Uint128::from(100000u128)), // 0.1 Luna
-    //         description: Some("Spaceship with Warp Drive".into()),
-    //         name: Some("Starship USS Enterprise".to_string()),
-    //         ..Metadata::default()
-    //     }),
-    //     token_key: Some(test_public_token_key.clone()),
-    //     token_key_version: Some(test_public_token_key_version),
-    //     is_tag: None,
-    //     parent_tag_id: None,
-    // });
 
-    // let allowed = mock_info("whoever", &[]);
-    // let _ = execute(deps.as_mut(), mock_env(), allowed, mint_msg).unwrap();
 
-    // // it worked, let's query the public key (visible to anybody)
-    // let media_addr = Addr::unchecked(token_id.clone());
-    // let res = query(deps.as_ref(), mock_env(), QueryMsg::GetPublicKey { media: media_addr.clone() }).unwrap();
-    // let value: PublicKeyResponse = from_binary(&res).unwrap();
 
-    // assert_eq!(test_public_token_key, value.token_key);
-    // assert_eq!(test_public_token_key_version, value.token_key_version);
 
+#[test]
+fn minting_the_tag_with_extra_fields() {
+    let mut deps = mock_dependencies(&[]);
+    setup_contract(deps.as_mut());
+
+
+    // no tags at all for now
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::AllTags { start_after: None, limit: None}).unwrap();
+    let value: TagsResponse = from_binary(&res).unwrap();
+    assert_eq!(0, value.tags.len());
+
+    let tag_id = "testtagid";
+
+    let mint_tag_msg = ExecuteMsg::MintTag(MintTagMsg {
+        tag_id: Addr::unchecked(tag_id),
+        is_private: true,
+        for_owners_of: None,
+        extra: Some("{\"json\": \"value\"}".to_string()),
+    });
+
+    let allowed = mock_info("whoever", &[]);
+    let _ = execute(deps.as_mut(), mock_env(), allowed.clone(), mint_tag_msg).unwrap();
+
+    // there is 1 tag now
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::AllTags { start_after: None, limit: None}).unwrap();
+    let value: TagsResponse = from_binary(&res).unwrap();
+    assert_eq!(1, value.tags.len());
+    assert_eq!(tag_id, value.tags[0]);
+
+    // there is 1 tag for this owner now
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Tags { owner: "whoever".to_string(), start_after: None, limit: None}).unwrap();
+    let value: TagsResponse = from_binary(&res).unwrap();
+    assert_eq!(1, value.tags.len());
+    assert_eq!(tag_id, value.tags[0]);
+
+    // but still nothing for other addresses
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Tags { owner: "some_other_minter".to_string(), start_after: None, limit: None}).unwrap();
+    let value: TagsResponse = from_binary(&res).unwrap();
+    assert_eq!(0, value.tags.len());
+
+
+    // should return info for the tag
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::TagInfo { tag_id: Addr::unchecked(tag_id) }).unwrap();
+    let value: TagInfoResponse = from_binary(&res).unwrap();
+
+    let extra = value.extra.unwrap_or_default();
+
+    assert_eq!("{\"json\": \"value\"}", extra);
+    assert_eq!(true, value.is_private);
 
 
 }

@@ -10,10 +10,11 @@ pub mod queries;
 mod local_cw721_base;
 pub use local_cw721_base::state::{TokenInfo};
 
-use cosmwasm_std::{Empty,DepsMut,Addr, Coin, Uint128, to_binary, Decimal,BankMsg,SubMsg};
+use cosmwasm_std::{Empty,DepsMut,Addr, Coin, Uint128, to_binary, Decimal,BankMsg,SubMsg,StdError};
 pub use local_cw721_base::{ContractError as Cw721ContractError,InstantiateMsg, MinterResponse};
 // pub use cw721_base::state::{TokenInfo};
 
+pub use cw721::{ TokensResponse, };
 
 // use cosmwasm_std::{Deps, Addr, StdResult};
 
@@ -22,7 +23,7 @@ use cw0::{NativeBalance};
 
 pub use crate::error::ContractError;
 
-pub use crate::msg::{Extension, Metadata, ExecuteMsg, MintMsg, MintTagMsg, QueryMsg, CountResponse, KeyResponse, BalanceResponse, TagsResponse, PriceResponse, PublicKeyResponse, WithdrawResponse};
+pub use crate::msg::{Extension, Metadata, ExecuteMsg, MintMsg, MintTagMsg, QueryMsg, CountResponse, KeyResponse, BalanceResponse, TagsResponse, TagInfoResponse, PriceResponse, PublicKeyResponse, WithdrawResponse};
 
 pub type PepperContract<'a> = local_cw721_base::Cw721Contract<'a, Extension, Empty>;
 pub type TokenInfoWithExtension = TokenInfo<Extension>;
@@ -34,6 +35,7 @@ trait PepperMethods {
     fn watch_price(&self, deps: &mut DepsMut, token_id: String, maybe_for_address: Option<Addr>) -> Uint128;
     fn nft_owner_addr(&self, deps: &mut DepsMut, token_id: String) -> Addr;
     fn nft_original_owner_addr(&self, deps: &mut DepsMut, token_id: String) -> Addr;
+    fn count_nfts_in_colletion(&self, deps: &mut DepsMut, owner: Addr, collection_address: Addr) -> Result<usize, StdError>;
 
 	// fn query_price(&self, deps: Deps, token_id: String) -> StdResult<PriceResponse>
 }
@@ -41,6 +43,18 @@ trait PepperMethods {
 impl PepperMethods for PepperContract<'_> {
     fn purchase_price(&self) -> Uint128 {
 		return Uint128::from(1000000u128); // 1million uluna == 1 luna
+    }
+    fn count_nfts_in_colletion(&self, deps: &mut DepsMut, owner: Addr, collection_address: Addr) -> Result<usize, StdError> {
+        let other_collection_nfts : TokensResponse = deps.querier.query_wasm_smart(
+                collection_address,
+                &QueryMsg::Tokens{
+                    owner: owner.to_string(),
+                    start_after: None,
+                    limit: None,
+                },
+            ) ? ;
+
+        Ok(other_collection_nfts.tokens.len())
     }
     fn watch_price(&self, deps: &mut DepsMut, token_id: String, maybe_for_address: Option<Addr>) -> Uint128 {
     	let token_info = self.tokens.load(deps.storage, &token_id.to_string());
@@ -153,6 +167,7 @@ pub mod entry {
 	        ExecuteMsg::MintTag(msg) => try_mint_tag(deps, info, msg),
             ExecuteMsg::BurnTag { tag_id } => try_burn_tag(deps, info, tag_id),
 	        ExecuteMsg::Burn { token_id } => try_burn(deps, env, info, token_id),
+            // ExecuteMsg::CheckCollection { collection } => try_check_collection(deps, env, info, collection),
 	        _ => default_execute_to_extended(deps, env, info, msg)
 	    }
     }
@@ -173,6 +188,27 @@ pub mod entry {
 	        Err(_err) => Err(ContractError::Unhandled {}),
 	    }
     }
+
+    // pub fn try_check_collection(mut deps: DepsMut,
+    //     _env: Env,
+    //     info: MessageInfo,
+    //     collection: Addr
+    // ) -> Result<Response, ContractError> {
+    //     let original_contract = PepperContract::default();
+
+    //     let count = original_contract.count_nfts_in_colletion(&mut deps, info.sender.clone(), collection.clone());
+
+    //     let mut resp_count = 0;
+
+    //     if count.is_ok() {
+    //         resp_count = count.unwrap();
+    //     }
+
+    //     Ok(Response::new()
+    //         .add_attribute("action", "try_check_collection")
+    //         .add_attribute("sender", info.sender)
+    //         .add_attribute("count", resp_count.to_string()))
+    // }
 
     pub fn try_burn(
         deps: DepsMut,
@@ -267,6 +303,9 @@ pub mod entry {
             count: 0,
             is_private: msg.is_private,
             main_token_id: None,
+            for_owners_of: msg.for_owners_of,
+            extra: msg.extra,
+
         };
 
         tags().update(deps.storage, &msg.tag_id, |old| match old {
@@ -547,6 +586,33 @@ pub mod entry {
             let expected_amount = minimum_amount + state.minimum_watch_price;
 
 	    	if !expected_amount.is_zero() {
+
+                // check if it's allowed for current sender
+                let token_info = contract.tokens.load(deps.storage, &media.to_string());
+
+                if token_info.is_ok() {
+                    let token_info = token_info.unwrap();
+                    let extension = token_info.extension.unwrap();
+
+                    // check if tag has settings that limit viewing of media for specific collection nft's holders
+                    if extension.tag_id.is_some() {
+                        let tag_id = extension.tag_id.unwrap();
+                        let tags = tags();
+                        let tag = tags.load(deps.storage, &tag_id)?;
+                        if tag.for_owners_of.is_some() {
+                            let count_nfts = contract.count_nfts_in_colletion(&mut deps, info.sender.clone(), Addr::unchecked(tag.for_owners_of.unwrap()));
+
+                            if count_nfts.is_ok() {
+                                if count_nfts.unwrap() < 1 {
+                                    return Err(ContractError::Unauthorized {});
+                                }
+                            } else {
+                                return Err(ContractError::Unauthorized {});
+                            }
+                        }
+                    }
+                }
+
 		    	let balance = NativeBalance(info.funds);
 
 		        let expected_coin = Coin { denom: "uluna".to_string(), amount: expected_amount };
@@ -603,7 +669,7 @@ pub mod entry {
 	}
 
 
-	pub use crate::queries::{query_count, query_key, query_balance, query_public_key, query_minimum_price, query_all_tags, query_tags, DEFAULT_LIMIT, MAX_LIMIT};
+	pub use crate::queries::{query_count, query_key, query_balance, query_public_key, query_minimum_price, query_all_tags, query_tags, query_tag_info, DEFAULT_LIMIT, MAX_LIMIT};
 
 
 	pub fn query_price(deps: Deps, media: Addr) -> StdResult<PriceResponse> {
@@ -627,7 +693,7 @@ pub mod entry {
     use cw_storage_plus::Bound;
     use crate::local_cw721_base::query::TokensResponse;
 
-    pub fn query_tag_tokens(deps: Deps, tag: Addr, start_after: Option<String>, limit: Option<u32>,) -> StdResult<TokensResponse> {
+    pub fn query_tag_tokens(deps: Deps, tag_id: Addr, start_after: Option<String>, limit: Option<u32>,) -> StdResult<TokensResponse> {
         let contract = PepperContract::default();
 
         let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
@@ -637,7 +703,7 @@ pub mod entry {
             .tokens
             .idx
             .tag
-            .prefix(tag)
+            .prefix(tag_id)
             .keys(deps.storage, start, None, Order::Ascending)
             .take(limit)
             .collect();
@@ -652,7 +718,8 @@ pub mod entry {
     	// let contract = PepperContract::default();
 
 	    match msg {
-            QueryMsg::TagTokens { tag, start_after, limit, } => to_binary(&query_tag_tokens(deps, tag, start_after, limit)?),
+            QueryMsg::TagInfo { tag_id, } => to_binary(&query_tag_info(deps, tag_id)?),
+            QueryMsg::TagTokens { tag_id, start_after, limit, } => to_binary(&query_tag_tokens(deps, tag_id, start_after, limit)?),
             QueryMsg::Tags { owner, start_after, limit, } => to_binary(&query_tags(deps, owner, start_after, limit)?),
 	        QueryMsg::AllTags { start_after, limit, } => to_binary(&query_all_tags(deps, start_after, limit)?),
 	        QueryMsg::GetCount {} => to_binary(&query_count(deps)?),
